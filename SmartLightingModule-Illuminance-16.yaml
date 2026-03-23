@@ -1,56 +1,5 @@
 esphome:
-  name: smart-lighting-module-Illuminance-16
-
-esp32:
-  board: esp32-c3-devkitm-1
-  variant: esp32c3
-  framework:
-    type: esp-idf
-
-# WiFi 配置：连接成功输出高电平
-wifi:
-  # ssid: "你的WiFi名称"
-  # password: "你的WiFi密码"
-  ap:
-    ssid: "SmartLightingModule-Illuminance-16" # AP 模式下的 WiFi 名称
-    password: "12345678" # AP 模式下的 WiFi 密码
-  on_connect:
-    - output.turn_on: wifi_led_pin
-  on_disconnect:
-    - output.turn_off: wifi_led_pin
-api:
-  encryption:
-    key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M="
-logger:
-  level: DEBUG
-ota: # 开启 OTA 升级
-  - platform: esphome
-    password: "12345678" # OTA 密码，建议修改为更安全的密码
-captive_portal: # 启用 WiFi 配置门户
-web_server:
-  port: 80          
-
-# WiFi 状态指示灯 (GPIO10)
-output:
-  - platform: gpio
-    pin: GPIO10
-    id: wifi_led_pin
-
-# 串口配置
-uart:
-  id: uart_bus
-  tx_pin: GPIO21
-  rx_pin: GPIO20
-  baud_rate: 9600
-
-# 全局变量：只保留数据缓冲区
-globals:
-  - id: rx_buf
-    type: std::vector<uint8_t>
-    initial_value: 'std::vector<uint8_t>()'
-
-# 核心逻辑：解析 485 返回的状态包与亮度包
-esphome:
+  name: s485-lt-me-le-16
   on_loop:
     - lambda: |-
         // 读取串口所有数据
@@ -131,6 +80,56 @@ esphome:
             id(rx_buf).erase(id(rx_buf).begin());
           }
         }
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+# WiFi 配置：连接成功输出高电平
+wifi:
+  # ssid: "你的WiFi名称"
+  # password: "你的WiFi密码"
+  ap:
+    ssid: "S485-LT-ME-16" # AP 模式下的 WiFi 名称
+    password: "12345678" # AP 模式下的 WiFi 密码
+  on_connect:
+    - output.turn_on: wifi_led_pin
+  on_disconnect:
+    - output.turn_off: wifi_led_pin
+api:
+  encryption:
+    key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M="
+logger:
+  level: DEBUG
+ota: # 开启 OTA 升级
+  - platform: esphome
+    password: "12345678" # OTA 密码，建议修改为更安全的密码
+captive_portal: # 启用 WiFi 配置门户
+web_server:
+  port: 80          
+
+# WiFi 状态指示灯 (GPIO10)
+output:
+  - platform: gpio
+    pin: GPIO10
+    id: wifi_led_pin
+
+# 串口配置
+uart:
+  id: uart_bus
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 9600
+
+# 全局变量：只保留数据缓冲区
+globals:
+  - id: rx_buf
+    type: std::vector<uint8_t>
+    initial_value: 'std::vector<uint8_t>()'
+
+# 核心逻辑：解析 485 返回的状态包与亮度包
+  
 
 # 脚本：发送命令排队
 script:
@@ -167,7 +166,7 @@ binary_sensor:
     id: fire_alarm
     device_class: smoke
   - platform: template
-    name: "开门信号状态"
+    name: "开门信号状态."
     id: door_signal
     device_class: door
 
@@ -187,11 +186,11 @@ button:
       - script.execute: query_state
       - script.execute: query_brightness
   - platform: template
-    name: "全开所有灯"
+    name: "全开所有灯on"
     on_press:
       - script.execute: { id: send_cmd, cmd: 0x51, data0: 0xFF, data1: 0xFF }
   - platform: template
-    name: "全关所有灯"
+    name: "全关所有灯off"
     on_press:
       - script.execute: { id: send_cmd, cmd: 0x52, data0: 0xFF, data1: 0xFF }
 
