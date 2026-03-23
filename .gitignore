@@ -11,5 +11,5 @@ secrets.yaml    #这个文件包含敏感信息，不应该被提交到版本控
 \build
 \Esphome HLK LD2402_20250724\
 \hlk_ld2402_esphome-main\
-
+\模块\
 
