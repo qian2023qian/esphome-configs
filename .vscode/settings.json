@@ -1,4 +1,0 @@
-{
-    "python.pythonPath": "esphome-env\\Scripts\\python.exe",
-    "idf.flashType": "UART"
-}
