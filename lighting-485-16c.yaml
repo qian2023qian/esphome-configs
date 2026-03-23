@@ -1,0 +1,580 @@
+esphome:
+  name: lighting-485-16ch
+  friendly_name: 485 16路照明模块
+  on_boot:
+    - priority: 600
+      then:
+        - delay: 2s
+        - script.execute: poll_script
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+wifi: # 配置 WiFi，建议修改为自己的网络
+  ssid: "your_wifi_ssid"
+  password: "your_wifi_password"
+  ap: # 启用 AP 模式，方便初始配置或 WiFi 连接失败时连接
+    ssid: "Lighting485-16ch"
+    password: "12345678" 
+ota: # 开启 OTA 升级
+  - platform: esphome
+    password: "12345678" # OTA 密码，建议修改为更安全的密码
+
+api: # 开启 Home Assistant API
+  encryption:
+    key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M=" # 建议后续设置一个安全的加密密钥  
+
+web_server: # 开启 Web 服务器，方便调试和手动控制 不需要的话可以删除这一段
+  port: 80
+
+logger:
+  level: DEBUG # 输出调试日志，方便查看通信细节 后续调试完成后可以改为 INFO 或 WARNING 减少日志量     
+
+uart:
+  id: uart485 # UART 实例 ID，后面脚本里要用到
+  tx_pin: GPIO20 # TX 引脚接ttl转485模块的DI
+  rx_pin: GPIO21 # RX 引脚接ttl转485模块的RO
+  baud_rate: 9600 # 波特率
+  parity: NONE
+  data_bits: 8 # 数据位
+  stop_bits: 1 # 停止位
+
+# DE 方向控制引脚
+output:
+  - platform: gpio
+    pin: GPIO5 # DE 引脚接 ttl 转 485 模块的 DE
+    id: rs485_de
+
+# 可调轮询间隔（全局变量）
+globals:
+  - id: poll_seconds
+    type: int
+    initial_value: '5'
+    restore_value: false
+
+number:
+  - platform: template
+    name: "轮询间隔（秒，0=关闭）"
+    id: poll_interval_num
+    icon: mdi:timer
+    min_value: 0
+    max_value: 60
+    step: 1
+    mode: slider
+    unit_of_measurement: "秒"
+    initial_value: 5
+    set_action:
+      - lambda: |-
+          id(poll_seconds) = int(x);
+
+# 手动刷新按钮
+button:
+  - platform: template
+    name: "手动刷新状态"
+    icon: mdi:refresh
+    on_press:
+      - script.execute: poll_script
+
+# ====================== 脚本 ======================
+script:
+  # 读取并更新状态（命令自动回复 / 查询回复 都用这个）
+  - id: read_status
+    then:
+      - delay: 80ms
+      - lambda: |-
+          if (id(uart485).available() >= 5) {
+            uint8_t buf[5];
+            id(uart485).read_array(buf, 5);
+            uint8_t calc_crc = (buf[0] + buf[1] + buf[2] + buf[3]) & 0xFF;
+            if (buf[0] == 0xFA && calc_crc == buf[4]) {
+              uint8_t xh = buf[2];
+              uint8_t xl = buf[3];
+              id(light_1).publish_state((xh & 0x80) != 0);
+              id(light_2).publish_state((xh & 0x40) != 0);
+              id(light_3).publish_state((xh & 0x20) != 0);
+              id(light_4).publish_state((xh & 0x10) != 0);
+              id(light_5).publish_state((xh & 0x08) != 0);
+              id(light_6).publish_state((xh & 0x04) != 0);
+              id(light_7).publish_state((xh & 0x02) != 0);
+              id(light_8).publish_state((xh & 0x01) != 0);
+              id(light_9).publish_state((xl & 0x80) != 0);
+              id(light_10).publish_state((xl & 0x40) != 0);
+              id(light_11).publish_state((xl & 0x20) != 0);
+              id(light_12).publish_state((xl & 0x10) != 0);
+              id(light_13).publish_state((xl & 0x08) != 0);
+              id(light_14).publish_state((xl & 0x04) != 0);
+              id(light_15).publish_state((xl & 0x02) != 0);
+              id(light_16).publish_state((xl & 0x01) != 0);
+            } else {
+              uint8_t dummy;
+              while (id(uart485).available()) {
+                id(uart485).read_byte(&dummy);
+              }
+            }
+          }
+
+  # 轮询脚本（带 3 次重试）
+  - id: poll_script
+    then:
+      - repeat:
+          count: 3
+          then:
+            - lambda: |-
+                id(rs485_de).turn_on();
+                delay(5);
+                uint8_t q[5] = {0xF5, 0x10, 0x00, 0x00, 0x00};
+                q[4] = (q[0] + q[1] + q[2] + q[3]) & 0xFF;
+                id(uart485).write_array(q, 5);
+                delay(5);
+                id(rs485_de).turn_off();
+            - delay: 120ms
+            - script.execute: read_status
+
+# 开机自动刷新一次
+
+
+# 定时轮询（根据 number 设置）
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(poll_seconds) > 0;'
+          then:
+            - lambda: |-
+                static uint8_t cnt = 0;
+                cnt++;
+                if (cnt >= id(poll_seconds)) {
+                  id(poll_script).execute();
+                  cnt = 0;
+                }
+
+# ====================== 16路开关（真实状态） ======================
+switch:
+  - platform: template
+    name: "灯 1" # 设备名称，建议修改为更有意义的名字
+    id: light_1  # ID，脚本里要用到
+    optimistic: false
+    restore_mode: ALWAYS_OFF # 断电记忆，重启后恢复之前状态。也可以改为 RESTORE_DEFAULT_OFF（默认关闭）或 RESTORE_DEFAULT_ON（默认开启）
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x80, 0x00, 0x00}; //#灯 1 的掩码是 0x80 00，灯 2 是 0x40 00，依此类推
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;   
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off(); 
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x80, 0x00, 0x00}; //#灯 1 的掩码是 0x80 00，灯 2 是 0x40 00，依此类推
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms # 等待设备处理命令并回复状态
+      - script.execute: read_status # 刷新状态，确保 Home Assistant 显示正确
+  - platform: template
+    name: "灯 2"
+    id: light_2
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x40, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x40, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+  - platform: template
+    name: "灯 3"
+    id: light_3
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x20, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x20, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status    
+      
+  - platform: template
+    name: "灯 4"
+    id: light_4
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x10, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x10, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status  
+  - platform: template
+    name: "灯 5"
+    id: light_5
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x08, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x08, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status    
+  - platform: template
+    name: "灯 6"
+    id: light_6
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x40, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x40, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status 
+  - platform: template
+    name: "灯 7"
+    id: light_7
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x02, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x02, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status       
+  - platform: template
+    name: "灯 8"
+    id: light_8
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x01, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x01, 0x00, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status    
+      
+  # 灯 2~灯 8、灯 10~灯 16 复制上面模板，只改 name / id / 掩码 即可
+  # 掩码表（直接替换 0x80, 0x00 这两字节）：
+  # 1: 80 00   2: 40 00   3: 20 00   4: 10 00
+  # 5: 08 00   6: 04 00   7: 02 00   8: 01 00
+  # 9: 00 80  10: 00 40  11: 00 20  12: 00 10
+  # 13:00 08  14:00 04  15:00 02  16:00 01
+
+  # 示例：灯 9（复制粘贴改掩码）
+  - platform: template
+    name: "灯 9"
+    id: light_9
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x80, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x80, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+
+  - platform: template
+    name: "灯 10"
+    id: light_10
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x40, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x40, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status 
+
+  - platform: template
+    name: "灯 11"
+    id: light_11
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x20, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x20, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status       
+  
+  - platform: template
+    name: "灯 12"
+    id: light_12
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x10, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x10, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+  - platform: template
+    name: "灯 13"
+    id: light_13
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x08, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x08, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status    
+  
+  - platform: template
+    name: "灯 14"
+    id: light_14
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x04, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x04, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+
+  - platform: template
+    name: "灯 15"
+    id: light_15
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x02, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x02, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status 
+  
+  - platform: template
+    name: "灯 16"
+    id: light_16
+    optimistic: false
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0x00, 0x01, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0x00, 0x01, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status       
+
+
+  # 全开 / 全关（推荐保留）
+  - platform: template
+    name: "全部灯 开 (ON)"
+    id: all_on
+    optimistic: false
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x51, 0xFF, 0xFF, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();  
+      - delay: 80ms # 命令执行后设备会回复状态，等它回复完再读状态，避免读到半更新的状态
+      - script.execute: read_status
+    turn_off_action: []
+
+  - platform: template
+    name: "全部灯 关 (OFF)"
+    id: all_off
+    optimistic: false
+    turn_on_action:
+      - lambda: |-
+          id(rs485_de).turn_on(); delay(5);
+          uint8_t pkt[5] = {0xF5, 0x52, 0xFF, 0xFF, 0x00};
+          pkt[4] = (pkt[0]+pkt[1]+pkt[2]+pkt[3]) & 0xFF;
+          id(uart485).write_array(pkt, 5);
+          delay(5); id(rs485_de).turn_off();
+      - delay: 80ms
+      - script.execute: read_status
+    turn_off_action: []
+sensor:
+  - platform: wifi_signal
+    name: "WiFi 信号强度"
+    update_interval: 60s  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);  //将 -100 ~ 0 dBm 转换为 0 ~ 100% 范围         

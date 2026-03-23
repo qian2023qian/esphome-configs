@@ -1,0 +1,10 @@
+esphome:
+  name: test
+  friendly_name: test
+
+esp32:
+  board: esp32dev
+
+on_boot:
+  then:
+    - lambda: 'return;'

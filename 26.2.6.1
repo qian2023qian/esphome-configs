@@ -1,0 +1,265 @@
+esphome:
+  name: water-heater-monitor
+  friendly_name: Water Heater Monitor
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: ASUS
+  password: 030800467stL
+  manual_ip:
+    static_ip: 192.168.50.37
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+
+logger:
+  level: DEBUG   # 上线后建议改为 INFO
+
+api:
+  encryption:
+    key: VRPd3w+CBqLvScJ1j1yjJ9ZGuzCihgjJxuqeeOEDDLc=
+
+ota:
+  - platform: esphome
+    password: 97496b777d55c2b6e71c9ac7c66c7832
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: admin
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+one_wire:
+  - platform: gpio
+    pin: GPIO04
+
+globals:
+  - id: daily_water_l
+    type: float
+    restore_value: yes
+    initial_value: '0'
+  - id: daily_energy_kwh
+    type: float
+    restore_value: yes
+    initial_value: '0'
+  - id: last_day
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+# 新增：可调节的流量触发阈值（L/min）
+number:
+  - platform: template
+    name: "Auto Trigger Flow Threshold"
+    id: flow_trigger_threshold
+    unit_of_measurement: "L/min"
+    icon: "mdi:water-pump"
+    min_value: 0.5
+    max_value: 10.0
+    step: 0.1
+    initial_value: 1.0
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            id(flow_trigger_threshold).publish_state(x);
+
+# 新增：开关 - 是否启用自动触发继电器
+switch:
+  - platform: template
+    name: "Auto Trigger Relay Enabled"
+    id: auto_trigger_enabled
+    icon: "mdi:power"
+    optimistic: true
+    initial_state: 'OFF'   # 默认关闭，避免意外触发
+    turn_on_action:
+      - logger.log: "Auto trigger relay ENABLED"
+    turn_off_action:
+      - logger.log: "Auto trigger relay DISABLED"
+      - switch.turn_off: relay_1   # 关闭时强制关掉继电器（可选，根据需求）
+
+  # 原有的继电器（改用 id 方便引用）
+  - platform: gpio
+    name: "Relay 1"
+    id: relay_1
+    pin: GPIO05
+    icon: "mdi:power-plug"
+    restore_mode: ALWAYS_OFF   # 上电默认关（安全）
+
+sensor:
+  - platform: pulse_meter
+    pin: GPIO18
+    name: "Flow Rate"
+    id: flow_rate_l_min
+    unit_of_measurement: "L/min"
+    device_class: volume_flow_rate
+    state_class: measurement
+    internal_filter: 12ms
+    internal_filter_mode: EDGE
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.002941176470588235  # 1/340
+
+  - platform: template
+    name: "Daily Water"
+    id: daily_water
+    unit_of_measurement: "L"
+    accuracy_decimals: 1
+    update_interval: 5s
+    lambda: return id(daily_water_l);
+    state_class: total_increasing
+    icon: "mdi:water"
+
+  - platform: dallas_temp
+    address: 0xDE3CE1E380B86F28
+    name: "Return Water Temp (T1)"
+    id: temp_t1
+    unit_of_measurement: "°C"
+    update_interval: 3s
+    accuracy_decimals: 1
+    filters:
+      - sliding_window_moving_average:
+          window_size: 12
+          send_every: 6
+      - debounce: 0.4s
+
+  - platform: dallas_temp
+    address: 0x583CE1E380DEB528
+    name: "Supply Water Temp (T2)"
+    id: temp_t2
+    unit_of_measurement: "°C"
+    update_interval: 3s
+    accuracy_decimals: 1
+    filters:
+      - sliding_window_moving_average:
+          window_size: 12
+          send_every: 6
+      - debounce: 0.4s
+
+  - platform: template
+    name: "Delta Temperature"
+    id: delta_t
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    update_interval: 5s
+    lambda: return id(temp_t2).state - id(temp_t1).state;
+    icon: "mdi:thermometer"
+
+  - platform: template
+    name: "Heating Power"
+    id: power_kw
+    unit_of_measurement: "kW"
+    accuracy_decimals: 2
+    update_interval: 5s
+    lambda: |-
+      float q = id(flow_rate_l_min).state;
+      float dt = id(delta_t).state;
+      if (dt < 0.3 || q < 0.3) return 0.0;
+      return q * 4.186 * dt / 60.0;
+    icon: "mdi:lightning-bolt"
+
+  - platform: template
+    name: "Daily Energy"
+    id: daily_energy
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 2
+    update_interval: 5s
+    lambda: return id(daily_energy_kwh);
+    state_class: total_increasing
+    icon: "mdi:lightning-bolt"
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+# 诊断传感器
+text_sensor:
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"    
+
+# 新增：流量阈值判断用的 binary_sensor（用于触发动作）
+binary_sensor:
+  - platform: template
+    name: "Flow Above Threshold"   # 可选显示在 HA，便于调试
+    id: flow_above_threshold
+    device_class: running
+    lambda: |-
+      if (id(flow_rate_l_min).state >= id(flow_trigger_threshold).state) {
+        return true;
+      } else {
+        return false;
+      }
+    update_interval: 3s   # 响应速度适中
+    on_state:
+      then:
+        - if:
+            condition:
+              and:
+                - switch.is_on: auto_trigger_enabled
+                - lambda: 'return x;'   # x 是当前 binary_sensor 的状态
+            then:
+              - switch.turn_on: relay_1
+              - logger.log: "Flow >= threshold → Relay ON (auto)"
+        - if:
+            condition:
+              and:
+                - switch.is_on: auto_trigger_enabled
+                - not:
+                    lambda: 'return x;'
+            then:
+              - switch.turn_off: relay_1
+              - logger.log: "Flow < threshold → Relay OFF (auto)"
+
+interval:
+  - interval: 4s
+    then:
+      - lambda: |-
+          static float last_flow = 0.0;
+          float flow = id(flow_rate_l_min).state;
+
+          float delta_liters = (last_flow + flow) / 2.0f * (4.0f / 60.0f);
+          id(daily_water_l) += delta_liters;
+          last_flow = flow;
+
+          float p = id(power_kw).state;
+          if (p > 0) {
+            id(daily_energy_kwh) += p * (4.0f / 3600.0f);
+          }
+
+  - interval: 300s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_time).now().is_valid() && id(ha_time).now().day_of_month != id(last_day);'
+          then:
+            - globals.set:
+                id: daily_water_l
+                value: '0'
+            - globals.set:
+                id: daily_energy_kwh
+                value: '0'
+            - lambda: |-
+                id(last_day) = id(ha_time).now().day_of_month;

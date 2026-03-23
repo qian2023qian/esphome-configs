@@ -1,0 +1,40 @@
+esphome:
+  name: "esp32-c3-beee"
+  friendly_name: "esp32-c3-beee"
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_BT_BLE_42_FEATURES_SUPPORTED: y  # 启用蓝牙4.2
+      CONFIG_BT_BLE_50_FEATURES_SUPPORTED: n  # 与4.2不同时启用[citation:1][citation:2][citation:3]  
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "15eir4mdKS6UWdhjaWvZAkgHlV38lBHE7PdTiVEY4n4="
+
+ota:
+  - platform: esphome
+    password: "cfc6bc738655e72d4319ba5b1182ef34"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Ld2410-Presence-Sensor"
+    password: "LaJfxPJdXti8"
+# 核心蓝牙组件
+esp32_ble_tracker:
+  scan_parameters:
+    active: true                # 主动扫描，发现设备更积极
+
+bluetooth_proxy:
+  active: true                  # 启用蓝牙代理功能
+captive_portal:

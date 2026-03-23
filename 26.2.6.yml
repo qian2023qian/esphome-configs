@@ -1,0 +1,263 @@
+esphome:
+  name: water-heater-monitor
+  friendly_name: Water Heater Monitor
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: ASUS
+  password: 030800467stL
+  manual_ip:
+    static_ip: 192.168.50.37
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: VRPd3w+CBqLvScJ1j1yjJ9ZGuzCihgjJxuqeeOEDDLc=
+
+ota:
+  - platform: esphome
+    password: 97496b777d55c2b6e71c9ac7c66c7832
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: admin
+#时间（用于跨天判断）
+time:
+  - platform: homeassistant
+    id: ha_time
+# OneWire 总线
+one_wire:
+  - platform: gpio
+    pin: GPIO04
+# 全局变量（日累计 + 上次日期）
+globals:
+  - id: daily_water_l
+    type: float
+    restore_value: yes
+    initial_value: '0'
+  - id: daily_energy_kwh
+    type: float
+    restore_value: yes
+    initial_value: '0'
+  - id: last_day
+    type: int
+    restore_value: no
+    initial_value: '0'
+# 可调参数（阈值 + 延时）
+number:
+  - platform: template
+    name: "Min Flow Threshold (a)" #最小流量阈值
+    id: min_flow_threshold
+    unit_of_measurement: "L/min"
+    min_value: 0.0 #最低流量 阈值
+    max_value: 10.0 #最高流量 阈值
+    step: 0.1
+    initial_value: 0.5
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Min Return Temp Threshold (b)" #最低回水温度阈值
+    id: min_return_temp_threshold
+    unit_of_measurement: "°C"
+    min_value: 0 #最低温度
+    max_value: 60 #最高温度
+    step: 1
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+    
+  - platform: template
+    name: "Pump Delay Seconds (c)" #水泵运行时间延时
+    id: pump_delay_seconds
+    unit_of_measurement: "s"
+    min_value: 1 #最短延时
+    max_value: 300 #最长延时
+    step: 1
+    initial_value: 60
+    optimistic: true
+    restore_value: true
+# 传感器部分
+sensor:
+  - platform: pulse_meter
+    pin: GPIO18
+    name: "Flow Rate" #瞬时流速 L/min
+    id: flow_rate_l_min
+    unit_of_measurement: "L/min"
+    device_class: volume_flow_rate
+    state_class: measurement
+    internal_filter: 12ms
+    internal_filter_mode: EDGE
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.002941176470588235
+
+  - platform: template
+    name: "Daily Water" #当天用水量（L）
+    id: daily_water
+    unit_of_measurement: "L"
+    accuracy_decimals: 1
+    update_interval: 5s
+    lambda: |-
+      return id(daily_water_l);
+    state_class: total_increasing
+    icon: "mdi:water"
+
+  - platform: dallas_temp
+    address: 0xDE3CE1E380B86F28
+    name: "Return Water Temp (T1)" #回水温度 T1
+    id: temp_t1
+    unit_of_measurement: "°C"
+    update_interval: 3s
+    accuracy_decimals: 1
+    filters:
+      - sliding_window_moving_average:
+          window_size: 12
+          send_every: 6
+      - debounce: 0.4s
+
+  - platform: dallas_temp
+    address: 0x583CE1E380DEB528
+    name: "Supply Water Temp (T2)" #送水温度 T2
+    id: temp_t2
+    unit_of_measurement: "°C"
+    update_interval: 3s
+    accuracy_decimals: 1
+    filters:
+      - sliding_window_moving_average:
+          window_size: 12
+          send_every: 6
+      - debounce: 0.4s
+
+  - platform: template
+    name: "Delta Temperature" #温差
+    id: delta_t
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    update_interval: 5s
+    lambda: |-
+      return id(temp_t2).state - id(temp_t1).state;
+    icon: "mdi:thermometer"
+
+  - platform: template
+    name: "Heating Power" #加热功率 kW
+    id: power_kw
+    unit_of_measurement: "kW"
+    accuracy_decimals: 2
+    update_interval: 5s
+    lambda: |-
+      float q = id(flow_rate_l_min).state;
+      float dt = id(delta_t).state;
+      if (dt < 0.3 || q < 0.3) return 0.0;
+      return q * 4.186 * dt / 60.0;
+    icon: "mdi:lightning-bolt"
+
+  - platform: template
+    name: "Daily Energy" #当天用电量（kWh）
+    id: daily_energy
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 2
+    update_interval: 5s
+    lambda: |-
+      return id(daily_energy_kwh);
+    state_class: total_increasing
+    icon: "mdi:lightning-bolt"
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+# 诊断传感器
+text_sensor:
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"    
+# 控制部分
+binary_sensor:
+  - platform: template
+    name: "Pump Trigger Condition" #水泵触发条件
+    id: pump_trigger
+    #update_interval: 2s
+    lambda: |-
+      return id(enable_pump_logic).state &&
+             (id(flow_rate_l_min).state > id(min_flow_threshold).state) &&
+             (id(temp_t1).state < id(min_return_temp_threshold).state);
+    on_press:
+      - script.execute: pump_cycle_script
+# 开关部分
+switch:
+  - platform: template
+    name: "Enable Pump Logic" #启用水泵逻辑
+    id: enable_pump_logic
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:toggle-switch"
+
+  - platform: gpio
+    name: "Pump Relay" #水泵继电器
+    id: pump_relay
+    pin: GPIO05
+# 脚本部分
+script:
+  - id: pump_cycle_script #水泵运行脚本
+    mode: single
+    then:
+      - switch.turn_on: pump_relay
+      - delay: !lambda 'return id(pump_delay_seconds).state * 1000;' #延时运行水泵
+      - switch.turn_off: pump_relay #关闭水泵
+# 定时任务：累加 + 跨天清零检测
+interval:
+  - interval: 4s
+    then:
+      - lambda: |-
+          static float last_flow = 0.0;
+          float flow = id(flow_rate_l_min).state;
+
+          float delta_liters = (last_flow + flow) / 2.0f * (4.0f / 60.0f);
+          id(daily_water_l) += delta_liters;
+          last_flow = flow;
+
+          float p = id(power_kw).state;
+          if (p > 0) {
+            id(daily_energy_kwh) += p * (4.0f / 3600.0f);
+          }
+# 每 5 分钟检查一次是否跨天防漏清零）
+  - interval: 300s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_time).now().is_valid() && id(ha_time).now().day_of_month != id(last_day);'
+          then:
+            - globals.set:
+                id: daily_water_l
+                value: '0'
+            - globals.set:
+                id: daily_energy_kwh
+                value: '0'
+            - lambda: |-
+                id(last_day) = id(ha_time).now().day_of_month;

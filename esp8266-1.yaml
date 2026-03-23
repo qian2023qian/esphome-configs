@@ -1,0 +1,162 @@
+esphome:
+  name: esp8266-1
+  friendly_name: esp8266-1
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "IpHNqVT+o07UH8FQJLX/sUMvYIv0LAau08ODO9bWAGY="
+
+ota:
+  - platform: esphome
+    password: "b6155f4efd397739b3b4092365d4fda8"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp8266-1 Fallback Hotspot"
+    password: "lCNkQ7HsUvVo"
+# 启用Web服务器
+web_server:
+  port: 80    
+
+captive_portal:
+# 定义四个继电器输出通道
+output:
+  - platform: gpio
+    pin: GPIO5  # D1
+    id: relay1_output
+    inverted: true  # 低电平触发
+  - platform: gpio
+    pin: GPIO4  # D2
+    id: relay2_output
+    inverted: true
+  - platform: gpio
+    pin: GPIO0  # D3 - 注意：GPIO0在启动时有特殊作用，但可作为输出使用
+    id: relay3_output
+    inverted: true
+  - platform: gpio
+    pin: GPIO2  # D4 - 内部上拉，启动时需为高电平
+    id: relay4_output
+    inverted: true
+
+# 定义四个继电器开关
+switch:
+  - platform: output
+    name: "Relay 1"
+    output: relay1_output
+    id: relay1
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: output
+    name: "Relay 2"
+    output: relay2_output
+    id: relay2
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: output
+    name: "Relay 3"
+    output: relay3_output
+    id: relay3
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: output
+    name: "Relay 4"
+    output: relay4_output
+    id: relay4
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# 定义四个物理按钮
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO12  # D6
+      mode: INPUT_PULLUP
+    id: button1
+    internal: true  # 标记为内部组件，不暴露给Home Assistant
+    on_press:
+      - switch.toggle: relay1
+  - platform: gpio
+    pin:
+      number: GPIO13  # D7
+      mode: INPUT_PULLUP
+    id: button2
+    internal: true
+    on_press:
+      - switch.toggle: relay2
+  - platform: gpio
+    pin:
+      number: GPIO14  # D5
+      mode: INPUT_PULLUP
+    id: button3
+    internal: true
+    on_press:
+      - switch.toggle: relay3
+  - platform: gpio
+    pin:
+      number: GPIO1  # TX
+      mode: INPUT_PULLUP
+    id: button4
+    internal: true
+    on_press:
+      - switch.toggle: relay4
+  # 状态指示灯（可选）    
+  #- platform: status
+  #  name: "ESP8266 Status"
+
+
+# DHT11 温湿度传感器 - 使用支持上拉电阻的引脚
+sensor:
+  - platform: dht
+    pin: 
+      number: GPIO3  # RX - 支持上拉电阻
+      mode: INPUT_PULLUP  # 启用内部上拉电阻
+    model: DHT11
+    temperature:
+      name: "Temperature"
+      id: dht11_temperature
+      unit_of_measurement: "°C"
+      accuracy_decimals: 1
+      filters:
+        - offset: 0.0  # 可添加温度校准偏移
+    humidity:
+      name: "Humidity"
+      id: dht11_humidity
+      unit_of_measurement: "%"
+      accuracy_decimals: 1
+      filters:
+        - offset: 0.0  # 可添加湿度校准偏移
+    update_interval: 30s
+
+    # 无线信号传感器
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+# 诊断传感器
+text_sensor:
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"

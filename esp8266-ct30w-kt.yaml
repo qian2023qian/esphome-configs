@@ -1,0 +1,246 @@
+esphome:
+  name: esp8266-ct30w-kt
+  friendly_name: ESP8266-CT30W-KT
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "e6oATGyEMiXcyruqfeJVM6zgq6uj72LxoCvj8HIN2qw="
+
+ota:
+  - platform: esphome
+    password: "635e60fc423c2a5ac351425c6a79cfe4"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp8266-Ct30W-Kt"
+    password: "DYNINp07u133"
+
+captive_portal:
+
+web_server:
+  port: 80
+
+
+# 红外发射器配置
+remote_transmitter:
+  pin: GPIO14  # 根据你的硬件接线修改
+  carrier_duty_percent: 50%
+
+
+ #红外接收器配置 - 使用内置dump功能
+remote_receiver:
+  pin: GPIO5
+  dump: all  # 关键：这会自动打印所有捕获到的红外原始数据
+  tolerance: 40%  # 默认25%，加大容错
+  buffer_size: 2kb  # 加大缓冲
+  filter: 200us     # 过滤噪声
+
+# ==================== 全局变量 ====================
+globals:
+  - id: current_temp
+    type: int
+    restore_value: yes
+    initial_value: '100'
+
+  - id: water_timer
+    type: int
+    initial_value: '0'  # 当前倒计时秒数
+
+  - id: current_water_type
+    type: int
+    initial_value: '0'  # 当前出水类型：0=无, 1=热水, 2=冷水
+
+  - id: last_water_type
+    type: int
+    initial_value: '0'  # 上一次按下的按钮类型（用于检测重复按下）
+
+# ==================== 温度循环脚本 ====================
+script:
+  - id: adjust_temperature
+    then:
+      - lambda: |-
+          int new_temp = id(current_temp) - 5;
+          if (new_temp < 45) new_temp = 100;
+          id(current_temp) = new_temp;
+      - component.update: current_temp_sensor
+
+# ==================== 出水处理脚本 ====================
+  - id: toggle_hot_water
+    then:
+      - lambda: |-
+          if (id(current_water_type) == 1 && id(water_timer) > 0) {
+            // 正在出热水，再次按 → 停止
+            id(water_timer) = 0;
+            id(current_water_type) = 0;
+          } else {
+            // 否则启动热水（会先清零当前）
+            id(water_timer) = 0;  // 先停止可能的冷水
+            id(current_water_type) = 1;
+            id(water_timer) = 25;
+          }
+          id(last_water_type) = 1;
+      - component.update: water_countdown_sensor
+
+  - id: toggle_cold_water
+    then:
+      - lambda: |-
+          if (id(current_water_type) == 2 && id(water_timer) > 0) {
+            // 正在出冷水，再次按 → 停止
+            id(water_timer) = 0;
+            id(current_water_type) = 0;
+          } else {
+            // 否则启动冷水
+            id(water_timer) = 0;
+            id(current_water_type) = 2;
+            id(water_timer) = 25;
+          }
+          id(last_water_type) = 2;
+      - component.update: water_countdown_sensor
+
+# ==================== 每秒倒计时 ====================
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(water_timer) > 0;'
+          then:
+            - globals.set:
+                id: water_timer
+                value: !lambda 'return id(water_timer) - 1;'
+            - component.update: water_countdown_sensor
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(water_timer) == 0 && id(current_water_type) != 0;'
+                then:
+                  - globals.set:
+                      id: current_water_type
+                      value: '0'
+                  - component.update: water_countdown_sensor
+
+# ==================== 显示实体 ====================
+text_sensor:
+  - platform: template
+    id: current_temp_sensor
+    name: "Tea Bar Current Temp"
+    icon: "mdi:thermometer"
+    lambda: |-
+      return {to_string(id(current_temp)) + "°C"};
+    update_interval: never
+
+  - platform: template
+    id: water_countdown_sensor
+    name: "Tea Bar Water Countdown"
+    icon: "mdi:timer-outline"
+    lambda: |-
+      if (id(water_timer) > 0) {
+        if (id(current_water_type) == 1) {
+          return {std::to_string(id(water_timer)) + " S"};
+        } else if (id(current_water_type) == 2) {
+          return {std::to_string(id(water_timer)) + " S"};
+        } else {
+          return {std::to_string(id(water_timer)) + " S"};
+        }
+      } else {
+        return {"OFF"};
+      }
+    update_interval: never
+    
+  # 诊断传感器
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"      
+# 按钮列表（名称全部用英文）
+button:
+  # Power button
+  - platform: template
+    name: "Tea Bar Power"
+    icon: "mdi:power" #电源
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 0048 0000 0036 000B 0037 000B 0015 002C 0037 000B 0037 000B 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000B 0037 000A 0016 002C 0037 000A 0037 000C 0014 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0037 0118 0036 000B 0037 000C 0014 002C 0036 0009 0039 000A 0016 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000A 0037 000B 0016 002C 0037 000A 0037 000C 0014 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000A 0037 000A 0016 002C 0036 000A 0037 0009 0017 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000A 0037 000C 0014 002C 0036 000B 0036 000C 0014 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0180"
+          repeat:
+            times: 1  # 重复发送2次，提高成功率
+
+  # Hot water button (取水)
+  - platform: template
+    name: "Tea Bar Hot Water"
+    icon: "mdi:water"
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 0048 0000 0035 000D 0036 000B 0014 002D 0036 000B 0037 000B 0037 000B 0015 002C 0014 002D 0014 002E 0014 002D 0036 000B 0037 011B 0036 0009 0039 0009 0017 002C 0036 000C 0035 000B 0037 000B 0015 002C 0015 002C 0015 002C 0015 002C 0036 000B 0037 011B 0036 0009 0038 000B 0015 002C 0036 000B 0037 0009 0039 0009 0017 002C 0015 002C 0015 002C 0015 002C 0036 000C 0035 011B 0036 000B 0037 000B 0015 002C 0036 000B 0036 000B 0036 000B 0015 002C 0015 002C 0015 002C 0015 002C 0036 000B 0036 011B 0036 0009 0038 0009 0017 002C 0036 000C 0035 0009 0039 000C 0014 002C 0015 002C 0015 002C 0015 002C 0036 000B 0036 011B 0036 000B 0036 0009 0017 002C 0036 000C 0035 000B 0037 000B 0015 002C 0015 002C 0015 002C 0015 002C 0036 000C 0035 0180"
+      - script.execute: toggle_hot_water
+  # Heating button 加热
+  - platform: template
+    name: "Tea Bar Heat"
+    icon: "mdi:fire"
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 003C 0000 0036 0009 0038 0009 0016 002D 0036 0009 0038 000B 0016 002D 0014 002D 0015 002C 0014 002D 0015 002C 0035 000C 0015 013A 0036 0009 0038 0009 0017 002D 0035 000B 0036 000C 0014 002D 0014 002D 0014 002D 0014 002D 0015 002D 0035 000C 0014 013B 0036 0009 0037 000B 0015 002D 0035 000B 0036 000B 0014 002E 0015 002D 0015 002C 0015 002D 0015 002D 0035 000C 0014 013B 0036 0009 0037 000D 0013 002E 0035 000B 0036 000C 0015 002C 0014 002D 0014 002D 0015 002C 0014 002D 0035 000D 0013 013B 0035 000D 0035 000D 0014 002E 0035 000D 0035 000C 0013 002E 0013 002E 0014 002E 0014 002E 0013 002E 0035 000D 0013 0180"
+
+  # Temperature adjustment button 调温
+  - platform: template
+    name: "Tea Bar Adjust Temp"
+    icon: "mdi:thermometer-minus"
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 003C 0000 0036 0009 0038 000A 0017 002C 0036 000A 0038 0008 0019 002D 0015 002D 0014 002D 0036 000C 0014 002D 0014 002D 0015 013D 0036 0009 0038 000C 0014 002D 0036 0009 0038 0009 0017 002D 0015 002C 0015 002D 0036 0009 0017 002D 0015 002C 0014 013D 0036 0009 0038 000C 0014 002D 0035 000D 0036 0009 0017 002D 0015 002D 0014 002D 0036 000B 0014 002D 0014 002C 0015 013D 0035 000B 0036 000B 0016 002D 0036 000C 0036 0007 0019 002D 0015 002D 0014 002D 0036 000C 0014 002D 0014 002D 0014 013D 0035 000B 0036 000B 0015 002E 0035 000B 0036 000B 0015 002D 0014 002D 0014 002D 0035 000D 0014 002D 0014 002D 0014 0180"
+      - script.execute: adjust_temperature
+  # Keep warm button 保温
+  - platform: template
+    name: "Tea Bar Keep Warm"
+    icon: "mdi:thermostat"
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 003C 0000 0034 000E 0034 000E 0012 002F 0034 000E 0033 000E 0012 002F 0012 002F 0012 002F 0013 002E 0034 000D 0012 002F 0013 013C 0034 000E 0034 000E 0012 002F 0034 000E 0033 000F 0011 0030 0012 002F 0012 002F 0012 002F 0033 000F 0011 0030 0012 013D 0033 000E 0033 000F 0011 0030 0033 000F 0033 000F 0011 0030 0011 0030 0011 0030 0012 002F 0033 000F 0011 0030 0011 013E 0033 000F 0033 000F 0011 0030 0033 000F 0033 000F 0011 0030 0011 0030 0011 0030 0011 0030 0033 000F 0011 0030 0011 013E 0033 000F 0033 000F 0011 0030 0033 000F 0033 000F 0011 0030 0012 002F 0011 0030 0012 002F 0033 000F 0011 0030 0011 0180"
+
+  # Cold water button 取冷水
+  - platform: template
+    name: "Tea Bar Cold Water"
+    icon: "mdi:water-outline"
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 003C 0000 0035 000C 0034 000E 0013 002E 0034 000E 0034 000E 0012 002F 0013 002E 0034 000E 0012 002F 0012 002F 0013 002E 0012 013F 0034 000E 0033 000F 0012 002F 0033 000F 0033 000F 0011 0030 0012 002F 0033 000F 0011 0030 0012 002F 0011 0030 0012 013F 0033 000F 0033 000F 0011 0030 0033 000F 0033 000F 0011 0030 0012 002F 0033 000F 0011 0030 0011 0030 0011 0030 0011 0140 0033 000F 0033 000F 0011 0030 0033 000F 0033 000F 0012 0030 0012 002F 0033 000F 0011 0030 0011 0030 0011 0030 0011 0140 0033 000F 0033 000F 0011 0030 0033 000F 0033 000F 0011 0030 0011 0030 0033 000F 0011 0030 0011 0030 0011 0030 0011 0180"
+          repeat:
+            times: 2  # 重复发送2次，提高成功率
+      - script.execute: toggle_cold_water
+# 重启开关（用于调试）
+switch:
+  - platform: restart
+    name: "Restart Device"    
+
+sensor:
+      # 无线信号传感器
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);

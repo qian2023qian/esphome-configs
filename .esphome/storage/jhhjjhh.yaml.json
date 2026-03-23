@@ -1,0 +1,39 @@
+{
+  "storage_version": 1,
+  "name": "jhhjjhh",
+  "friendly_name": "jhhjjhh",
+  "comment": null,
+  "esphome_version": "2025.12.4",
+  "src_version": 1,
+  "address": "jhhjjhh.local",
+  "web_port": null,
+  "esp_platform": "ESP32C3",
+  "build_path": "E:\\esphome\\.esphome\\build\\jhhjjhh",
+  "firmware_bin_path": "E:\\esphome\\.esphome\\build\\jhhjjhh\\.pioenvs\\jhhjjhh\\firmware.bin",
+  "loaded_integrations": [
+    "api",
+    "captive_portal",
+    "esp32",
+    "esphome",
+    "logger",
+    "md5",
+    "mdns",
+    "network",
+    "ota",
+    "preferences",
+    "safe_mode",
+    "sha256",
+    "socket",
+    "web_server",
+    "web_server_base",
+    "web_server_idf",
+    "wifi"
+  ],
+  "loaded_platforms": [
+    "ota/esphome",
+    "ota/web_server"
+  ],
+  "no_mdns": false,
+  "framework": "esp-idf",
+  "core_platform": "esp32"
+}

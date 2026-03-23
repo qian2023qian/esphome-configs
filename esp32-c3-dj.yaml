@@ -1,0 +1,59 @@
+esphome:
+  name: esp32-c3-dj
+  friendly_name: ESP32-C3-dj
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger: 
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "v892kF5zUYOOHdRitiNMjr8a0OfJ+0CzGZxwyqRhXUI="
+
+ota:
+  - platform: esphome
+    password: "756358e2140b514dbc629679515d202a"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32-C3-Dj Fallback Hotspot"
+    password: "UCkpWND5dU7J"
+
+captive_portal:
+# 配置硬件 PWM 输出
+output:
+  - platform: ledc
+    id: esc_pwm_output
+    pin: GPIO8  # 【重要】请修改为你实际连接电调信号线（S）的 GPIO 引脚
+    frequency: 50Hz
+    
+    # 占空比计算 (频率 50Hz 时，一个周期为 1000ms / 50 = 20ms)
+    # 停止信号：0.9ms / 20ms = 0.045 (4.5%)
+    min_power: 0.045 
+    
+    # 最大转速信号：2.0ms / 20ms = 0.100 (10%)
+    max_power: 0.100 
+    
+    # 【核心设置】必须设为 false！
+    # 这样当你在 Home Assistant 中关闭开关时，ESP 会持续输出 min_power (0.9ms)，
+    # 从而保持电调的停止状态，并满足其开机安全自检必须接收 0.9ms 信号的需求。
+    zero_means_zero: false
+
+# 使用风扇组件来控制转速，UI 界面更直观
+fan:
+  - platform: speed
+    output: esc_pwm_output
+    name: "Brushless Motor"
+    # 【安全防爆冲设置】每次 ESP 启动时强制保持关闭状态 (输出 0.9ms)，
+    # 防止因记录了上次的开启状态而导致电调无法通过自检或电机意外高速旋转。
+    restore_mode: ALWAYS_OFF

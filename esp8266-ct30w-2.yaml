@@ -1,0 +1,112 @@
+esphome:
+  name: esp8266-ct30w-2
+  friendly_name: ESP8266-CT30W-2
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "yEnR1EcyBk/z2OGmjx3FExTiZM+NvMVTBQirScCLG0M="
+  services:
+    - service: send_raw_ir
+      variables:
+        raw_data: 'int[]'
+        freq: float
+      then:
+        - remote_transmitter.transmit_raw: # 发送原始红外数据
+              code: !lambda 'return raw_data;'
+              carrier_frequency: !lambda 'return freq;'
+    - service: send_nec_ir
+      variables:
+        addr: int
+        cmd: int
+        cmd_repeats: int
+      then:
+        - remote_transmitter.transmit_nec: # 发送NEC协议红外数据
+            address: !lambda 'return addr;' #0x1234
+            command: !lambda 'return cmd;'  #0x78AB
+            command_repeats: !lambda 'return cmd_repeats;' # 1
+    - service: send_pronto_ir # 发送Pronto Hex格式红外数据
+      variables:
+        pronto_data_string: string
+      then:
+        - remote_transmitter.transmit_pronto:
+              data: !lambda 'return pronto_data_string;'  #        
+
+ota:
+  - platform: esphome
+    password: "0cb3c215c6ac9ecb6a4f61c330619536"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp8266-Ct30W-2 Fallback Hotspot"
+    password: "OrVtfh56yO21"
+
+web_server:
+  port: 80
+
+captive_portal:
+
+output:
+  - platform: gpio
+    pin: GPIO15
+    inverted: False
+    id: ir_led_output
+light:
+  - platform: binary
+    output: ir_led_output
+    name: "红外发射器LED"
+# 红外发射器配置
+remote_transmitter:
+  pin: GPIO14  # 根据你的硬件接线修改
+  carrier_duty_percent: 50%
+
+
+ #红外接收器配置 - 使用内置dump功能
+remote_receiver:
+  pin: GPIO5
+  dump: all  # 关键：这会自动打印所有捕获到的红外原始数据
+  tolerance: 40%  # 默认25%，加大容错
+  buffer_size: 2kb  # 加大缓冲
+  filter: 200us     # 过滤噪声    
+
+text_sensor:
+  # 诊断传感器
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP地址"      
+
+
+
+sensor:
+      # 无线信号传感器
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);

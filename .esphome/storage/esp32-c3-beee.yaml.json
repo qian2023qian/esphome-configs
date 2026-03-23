@@ -1,0 +1,43 @@
+{
+  "storage_version": 1,
+  "name": "esp32-c3-beee",
+  "friendly_name": "esp32-c3-beee",
+  "comment": null,
+  "esphome_version": "2025.12.4",
+  "src_version": 1,
+  "address": "esp32-c3-beee.local",
+  "web_port": null,
+  "esp_platform": "ESP32C3",
+  "build_path": "E:\\esphome\\.esphome\\build\\esp32-c3-beee",
+  "firmware_bin_path": "E:\\esphome\\.esphome\\build\\esp32-c3-beee\\.pioenvs\\esp32-c3-beee\\firmware.bin",
+  "loaded_integrations": [
+    "api",
+    "bluetooth_proxy",
+    "captive_portal",
+    "esp32",
+    "esp32_ble",
+    "esp32_ble_client",
+    "esp32_ble_tracker",
+    "esphome",
+    "logger",
+    "md5",
+    "mdns",
+    "network",
+    "ota",
+    "preferences",
+    "safe_mode",
+    "sha256",
+    "socket",
+    "web_server",
+    "web_server_base",
+    "web_server_idf",
+    "wifi"
+  ],
+  "loaded_platforms": [
+    "ota/esphome",
+    "ota/web_server"
+  ],
+  "no_mdns": false,
+  "framework": "esp-idf",
+  "core_platform": "esp32"
+}

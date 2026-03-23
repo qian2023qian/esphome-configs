@@ -1,0 +1,248 @@
+esphome:
+  name: smart-lighting-module-16
+  # 核心逻辑：解析 485 返回的状态包
+  on_loop:
+    - lambda: |-
+        while (id(uart_bus).available() > 0) {
+          uint8_t c;
+          id(uart_bus).read_byte(&c);
+          id(rx_buf).push_back(c);
+          if(id(rx_buf).size() > 50) id(rx_buf).erase(id(rx_buf).begin());
+        }
+        while (id(rx_buf).size() >= 5) {
+          if (id(rx_buf)[0] == 0xFA) {
+            uint8_t byte1 = id(rx_buf)[1]; 
+            uint8_t xh = id(rx_buf)[2];    
+            uint8_t xl = id(rx_buf)[3];    
+            uint8_t crc = id(rx_buf)[4];   
+            uint8_t calc_crc = (uint8_t)(0xFA + byte1 + xh + xl);
+            if (crc == calc_crc) {
+              id(awaiting_response) = false;
+              id(retry_count) = 0;
+              auto update_sw = [](esphome::template_::TemplateSwitch *sw, bool state) {
+                if (sw != nullptr && sw->state != state) sw->publish_state(state);
+              };
+              // 状态解析
+              update_sw(id(ch1), xh & 0x80); update_sw(id(ch2), xh & 0x40);  // 1-8路状态在 xh 字节，9-16路状态在 xl 字节
+              update_sw(id(ch3), xh & 0x20); update_sw(id(ch4), xh & 0x10);  // 1: 80 00  2: 40 00  3: 20 00  4: 10 00
+              update_sw(id(ch5), xh & 0x08); update_sw(id(ch6), xh & 0x04);
+              update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
+              update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
+              update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
+              update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
+              update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
+              id(rx_buf).erase(id(rx_buf).begin(), id(rx_buf).begin() + 5);
+            } else { id(rx_buf).erase(id(rx_buf).begin()); }
+          } else { id(rx_buf).erase(id(rx_buf).begin()); }
+        }
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+api:
+  encryption:
+    key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M="
+ota: # 开启 OTA 升级
+  - platform: esphome
+    password: "12345678" # OTA 密码，建议修改为更安全的密码
+# 串口配置：请根据实际接线检查 TX/RX
+wifi:
+  #ssid: "your_wifi_ssid" # WiFi 名称，修改为你的 WiFi
+  #password: "your_wifi_password" # WiFi 密码，修改为你的 WiFi 密码
+  ap:
+    ssid: "SmartLightingModule-16" # AP 模式下的 WiFi 名称
+    password: "12345678" # AP 模式下的 WiFi 密码
+
+captive_portal: # 启用 WiFi 配置门户
+
+web_server:
+  port: 80      
+uart:
+  id: uart_bus
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 9600
+
+# 全局变量
+globals:
+  - id: rx_buf
+    type: std::vector<uint8_t>
+    # 修复报错：明确初始化为空的 vector
+    initial_value: 'std::vector<uint8_t>()'
+  - id: poll_counter
+    type: int
+    initial_value: '0'
+  - id: retry_count
+    type: int
+    initial_value: '0'
+  - id: awaiting_response
+    type: bool
+    initial_value: 'false'
+
+script:
+  # 队列模式发送控制指令
+  - id: send_cmd
+    mode: queued
+    max_runs: 32
+    parameters:
+      cmd: int
+      data0: int
+      data1: int
+    then:
+      - lambda: |-
+          uint8_t payload[] = {0xF5, (uint8_t)cmd, (uint8_t)data0, (uint8_t)data1, (uint8_t)(0xF5 + cmd + data0 + data1)};
+          id(uart_bus).write_array(payload, 5);
+      - delay: 100ms
+
+  - id: query_state
+    mode: queued
+    then:
+      - lambda: 'uint8_t p[] = {0xF5, 0x10, 0x00, 0x00, 0x05}; id(uart_bus).write_array(p, 5);'
+      - delay: 100ms
+
+# 定时器：轮询和重试
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(auto_poll_sw).state) {
+            id(poll_counter)++;
+            if (id(poll_counter) >= id(poll_time).state) {
+              id(poll_counter) = 0; id(query_state).execute();
+              id(awaiting_response) = true; id(retry_count) = 0;
+            } else if (id(awaiting_response) && id(poll_counter) == 2) {
+              if (id(retry_count) < 3) { id(retry_count)++; id(query_state).execute(); }
+              else { id(awaiting_response) = false; }
+            }
+          }
+
+button:
+  - platform: template
+    name: "手动刷新状态"
+    on_press:
+      - script.execute: query_state
+  - platform: template
+    name: "全开所有灯 ON"
+    on_press:
+      - script.execute: { id: send_cmd, cmd: 0x51, data0: 0xFF, data1: 0xFF }
+  - platform: template
+    name: "全关所有灯 OFF"
+    on_press:
+      - script.execute: { id: send_cmd, cmd: 0x52, data0: 0xFF, data1: 0xFF }
+
+number:
+  - platform: template
+    name: "轮询间隔"
+    id: poll_time
+    min_value: 5
+    max_value: 240
+    step: 1
+    restore_value: true
+    initial_value: 10
+    optimistic: true
+
+switch:
+  - platform: template
+    name: "状态自动轮询开关"
+    id: auto_poll_sw
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  # 16路继电器配置 (data0对应1-8路，data1对应9-16路)
+  - platform: template
+    name: "灯光-01"
+    id: ch1
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x80, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x80, data1: 0x00 } }
+  - platform: template
+    name: "灯光-02"
+    id: ch2
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x40, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x40, data1: 0x00 } }
+  - platform: template
+    name: "灯光-03"
+    id: ch3
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x20, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x20, data1: 0x00 } }
+  - platform: template
+    name: "灯光-04"
+    id: ch4
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x10, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x10, data1: 0x00 } }
+  - platform: template
+    name: "灯光-05"
+    id: ch5
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
+  - platform: template
+    name: "灯光-06"
+    id: ch6
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
+  - platform: template
+    name: "灯光-07"
+    id: ch7
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
+  - platform: template
+    name: "灯光-08"
+    id: ch8
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
+  - platform: template
+    name: "灯光-09"
+    id: ch9
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
+  - platform: template
+    name: "灯光-10"
+    id: ch10
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
+  - platform: template
+    name: "灯光-11"
+    id: ch11
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
+  - platform: template
+    name: "灯光-12"
+    id: ch12
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
+  - platform: template
+    name: "灯光-13"
+    id: ch13
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
+  - platform: template
+    name: "灯光-14"
+    id: ch14
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
+  - platform: template
+    name: "灯光-15"
+    id: ch15
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
+  - platform: template
+    name: "灯光-16"
+    id: ch16
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi 信号强度"
+    update_interval: 60s  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);  //将 -100 ~ 0 dBm 转换为 0 ~ 100% 范围    

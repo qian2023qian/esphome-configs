@@ -1,0 +1,32 @@
+esphome:
+  name: esp32-c3-ld2402
+  friendly_name: ESP32-C3-ld2402
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "LZviiyKJ3MUu6rRglgB1jcX1MSRnV/JvhYCPbzCbAfs="
+
+ota:
+  - platform: esphome
+    password: "c757e2076e7f440a39093493c042fcae"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32-C3-Ld2402 Fallback Hotspot"
+    password: "RxCk0NDYg9Bb"
+
+captive_portal:
+    

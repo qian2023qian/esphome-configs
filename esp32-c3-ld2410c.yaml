@@ -1,0 +1,299 @@
+esphome:
+  name: esp32-c3-ld2410c
+  friendly_name: ESP32-C3-ld2410c
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "Y2ZT7U6Ra9ZdFB6dFwLPNpUfneCfadl2hOrQiRz5T1E="
+
+ota:
+  - platform: esphome
+    password: "77c900166168206dbad13467361dd227"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32-C3-Ld2410C"
+    password: "IXNUYygXOJQJ"
+
+captive_portal:
+# ==================== 【3. 通信接口配置】====================
+# UART串口配置 - 用于LD2410B毫米波雷达通信
+# ==================== 【UART串口配置】====================
+# UART串口配置 - 用于LD2410B毫米波雷达通信
+uart:
+  tx_pin: GPIO21               # ESP32-C3发送引脚 → 接LD2410B的RX（蓝线）
+  rx_pin: GPIO20               # ESP32-C3接收引脚 → 接LD2410B的TX（绿线）
+  baud_rate: 256000            # LD2410B固定波特率，不可更改
+  stop_bits: 1                 # 停止位数
+  parity: NONE                 # 校验位：无
+
+# ==================== 【I2C总线配置】====================
+# I2C总线配置 - 用于BH1750光照传感器通信
+i2c:
+  sda: GPIO6                   # I2C数据线，接BH1750的SDA
+  scl: GPIO7                   # I2C时钟线，接BH1750的SCL
+  scan: true                   # 启动时扫描I2C设备，方便调试
+  frequency: 100kHz            # I2C通信频率
+
+# ==================== 【LD2410B主组件声明】====================
+# 使用ESPHome内置的LD2410组件（简洁写法，与成功示例一致）
+ld2410:
+
+# ==================== 【LD2410B检测状态】====================
+binary_sensor:
+  # LD2410B检测目标状态（与成功示例结构一致）
+  - platform: ld2410
+    has_target:                # 综合存在状态（移动或静止）
+      name: "Presence"
+    has_moving_target:         # 单独检测到移动目标
+      name: "Moving Target"
+    has_still_target:          # 单独检测到静止目标
+      name: "Still Target"
+    out_pin_presence_status:   # 雷达OUT引脚的电平状态
+      name: "Radar Output Pin Status"
+
+  # 系统状态监控
+  - platform: status          # 设备与HA连接状态
+    name: "Device Connectivity"
+    device_class: connectivity
+    
+  # 可选的：直接读取LD2410B背面OUT引脚的物理电平（需接线）
+  - platform: gpio
+    pin: GPIO9                  # 连接LD2410B OUT引脚的GPIO
+    name: "Radar Hardware Output"
+    device_class: presence
+ 
+# ==================== 【LD2410B数据传感器】====================
+sensor:
+  # LD2410B基础检测数据（与成功示例结构一致）
+  - platform: ld2410
+    moving_distance:            # 最近移动目标的距离（米）
+      name: "Moving Distance"
+    still_distance:             # 最近静止目标的距离（米）
+      name: "Still Distance"
+    moving_energy:              # 移动目标能量值（信号强度0-100）
+      name: "Move Energy"
+    still_energy:               # 静止目标能量值
+      name: "Still Energy"
+    detection_distance:         # 当前检测距离（移动优先）
+      name: "Detection Distance"
+    light:                      # 雷达板载光敏电阻值（部分型号）
+      name: "Radar Built-in Light"
+ # 【高级调试】距离门能量值 - 工程模式开启后有效
+  # LD2410将0-6米分为9个距离门（gate 0-8），每门0.75米
+  - platform: ld2410
+    g0:                         # 距离门0: 0-0.75米
+      move_energy:
+        name: "G0 Moving Energy"  # G0移动能量
+          # 调试用，默认禁用
+      still_energy:
+        name: "G0 Still Energy"  # G0静止能量
+    g1:
+      move_energy:
+        name: "G1 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G1 Still Energy"  # G0静止能量
+    g2:
+      move_energy:
+        name: "G2 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G2 Still Energy"  # G0静止能量
+    g3:
+      move_energy:
+        name: "G3 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G3 Still Energy"  # G0静止能量
+    g4:
+      move_energy:
+        name: "G4 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G4 Still Energy"  # G0静止能量
+    g5:
+      move_energy:
+        name: "G5 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G5 Still Energy"  # G0静止能量
+    g6:
+      move_energy:
+        name: "G6 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G6 Still Energy"  # G0静止能量
+    g7:
+      move_energy:
+        name: "G7 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G7 Still Energy"  # G0静止能量
+    g8:
+      move_energy:
+        name: "G8 Moving Energy"  # G0移动能量
+      still_energy:
+        name: "G8 Still Energy"  # G0静止能量
+# ==================== 【DHT22温湿度传感器】====================
+  # DHT22温湿度传感器
+  - platform: dht
+    pin: GPIO8                 # DHT22数据线连接的GPIO引脚
+    model: DHT22               # 传感器型号
+    temperature:
+      name: "Temperature"      # 环境温度
+      unit_of_measurement: "°C"
+      accuracy_decimals: 1
+      device_class: temperature
+    humidity:
+      name: "Humidity"         # 环境湿度
+      unit_of_measurement: "%"
+      accuracy_decimals: 1
+      device_class: humidity
+    update_interval: 30s       # 更新间隔，DHT22不宜频繁读取
+
+# ==================== 【BH1750光照传感器】====================
+  # BH1750光照强度传感器（通过I2C通信）
+  - platform: bh1750
+    name: "Illuminance"        # 光照强度
+    address: 0x23              # BH1750的I2C地址（0x23或0x5C）
+    update_interval: 10s       # 更新间隔
+    unit_of_measurement: "lx"  # 单位：勒克斯
+    accuracy_decimals: 0
+    device_class: illuminance
+
+# ==================== 【系统状态监控】====================
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+
+  # 设备运行时间
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+    unit_of_measurement: "s"
+    icon: "mdi:timer"
+    accuracy_decimals: 0
+
+# ==================== 【LD2410B控制与调节】====================
+number:
+  - platform: ld2410
+    timeout:                    # 无人判定超时时间（秒）
+      name: "Timeout"
+    max_move_distance_gate:    # 移动目标最大检测距离门（0-8）
+      name: "Max Move Distance Gate"
+    max_still_distance_gate:   # 静止目标最大检测距离门
+      name: "Max Still Distance Gate"
+    g0:
+      move_threshold:
+        name: g0 move threshold
+      still_threshold:
+        name: g0 still threshold
+    g1:
+      move_threshold:
+        name: g1 move threshold
+      still_threshold:
+        name: g1 still threshold
+    g2:
+      move_threshold:
+        name: g2 move threshold
+      still_threshold:
+        name: g2 still threshold
+    g3:
+      move_threshold:
+        name: g3 move threshold
+      still_threshold:
+        name: g3 still threshold
+    g4:
+      move_threshold:
+        name: g4 move threshold
+      still_threshold:
+        name: g4 still threshold
+    g5:
+      move_threshold:
+        name: g5 move threshold
+      still_threshold:
+        name: g5 still threshold
+    g6:
+      move_threshold:
+        name: g6 move threshold
+      still_threshold:
+        name: g6 still threshold
+    g7:
+      move_threshold:
+        name: g7 move threshold
+      still_threshold:
+        name: g7 still threshold
+    g8:
+      move_threshold:
+        name: g8 move threshold
+      still_threshold:
+        name: g8 still threshold      
+
+# ==================== 【LD2410B功能开关】====================
+switch:
+  - platform: ld2410
+    engineering_mode:          # 工程模式开关
+      name: "Engineering Mode"
+    bluetooth:                 # 雷达内置蓝牙开关
+      name: "Control Bluetooth"
+
+# ==================== 【LD2410B设备操作按钮】====================
+button:
+  - platform: ld2410
+    factory_reset:             # 恢复雷达出厂设置
+      name: "Factory Reset"
+    restart:                   # 重启雷达模块（不影响ESP32）
+      name: "Restart"
+    query_params:              # 查询并更新雷达当前参数
+      name: "Query Params"
+
+# ==================== 【LD2410B信息显示】====================
+text_sensor:
+  - platform: ld2410
+    version:                   # 雷达固件版本
+      name: "Firmware Version"
+    mac_address:               # 雷达蓝牙MAC地址
+      name: "MAC Address"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+
+# ==================== 【LD2410B模式选择】====================
+select:
+  - platform: ld2410
+    distance_resolution:       # 距离分辨率选择
+      name: "Distance Resolution"
+    baud_rate:                 # 波特率选择（需与uart配置一致）
+      name: "Baud Rate"
+    light_function:            # 光敏功能模式选择
+      name: "Light Function"
+    out_pin_level:             # OUT引脚输出电平选择
+      name: "Out Pin Level"
+
+# ==================== 【全局变量】====================
+globals:
+  - id: last_presence_time    # 记录最后检测到人的时间戳
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+# ==================== 【配置结束】====================    

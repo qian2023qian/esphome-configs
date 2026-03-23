@@ -1,0 +1,403 @@
+esphome:
+  name: magnetic-relay
+  friendly_name: 磁保继电器插座
+  
+  on_boot:
+    # 合并为单个 block，priority -100晚于默认初始化，确保一切就绪
+    - priority: -100
+      then:
+        # 第一步：恢复 Home Assistant 里“上电状态”选择器的显示
+        - if:
+            condition:
+              lambda: 'return id(power_on_memory_index) == 1;'
+            then:
+              - lambda: 'id(power_on_behavior).publish_state("总是开启");'
+        - if:
+            condition:
+              lambda: 'return id(power_on_memory_index) == 2;'
+            then:
+              - lambda: 'id(power_on_behavior).publish_state("总是关闭");'
+        - if:
+            condition:
+              lambda: 'return id(power_on_memory_index) == 0;'
+            then:
+              - lambda: 'id(power_on_behavior).publish_state("断电记忆");'
+
+        # 第二步：等待系统稳定 WiFi、API 等全部初始化
+        - delay: 1000ms
+
+        # 第三步：根据记忆执行继电器动作
+        # 选项 1: 总是开启
+        - if:
+            condition:
+              lambda: 'return id(power_on_memory_index) == 1;'
+            then:
+              - switch.turn_on: relay_template   # 自动打 SET 脉冲 + 更新全局 + 发布状态
+
+        # 选项 2: 总是关闭
+        - if:
+            condition:
+              lambda: 'return id(power_on_memory_index) == 2;'
+            then:
+              - switch.turn_off: relay_template  # 自动打 RESET 脉冲 + 更新全局 + 发布状态
+
+        # 选项 0: 断电记忆
+        - if:
+            condition:
+              lambda: 'return id(power_on_memory_index) == 0;'
+            then:
+              - if:
+                  condition:
+                    lambda: 'return id(relay_memory_state);'
+                  then:
+                    - switch.turn_on: relay_template
+                  else:
+                    - switch.turn_off: relay_template
+esp8266:
+  board: esp01_1m 
+  restore_from_flash: true    #强制断电写入物理闪存
+output: # 状态指示灯
+  - platform: gpio
+    id: status_led
+    pin:
+      number: GPIO2
+      inverted: true   # 低电平点亮
+    #restore_mode: ALWAYS_OFF  
+logger:
+  level: DEBUG  
+ota:
+  - platform: esphome
+    password: "aa89695b7a7f6d744e7390050037b45a"
+api:
+  encryption:
+    key: "Iiho9bZt//QPgutJZWiHSMkuMQDzuEMfyQnvuZoG3TA="  # 建议后续设置一个安全的加密密钥
+wifi:
+  #ssid: !secret wifi_ssid
+  #password: !secret wifi_password
+  # 不预设账号密码，让其直接进入 AP 模式
+  ap:
+    ssid: "MagneticRelay"
+    password: "12345678"
+web_server:
+  port: 80    
+
+captive_portal:
+
+# 全局变量：用于存储昨日用电量
+globals:
+  - id: yesterday_energy_var
+    type: float
+    restore_value: true
+    initial_value: '0.0'
+  - id: relay_memory_state # 断电记忆状态变量
+    type: bool
+    restore_value: true
+    initial_value: 'false'  
+    
+  - id: power_on_memory_index # 上电选项状态变量
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+    
+
+# SNTP 时间服务，用于计算每日电量
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Asia/Shanghai"
+    on_time:
+      # 每天 23:59:59 记录今日电量到昨日电量变量中
+      - seconds: 59
+        minutes: 59
+        hours: 23
+        then:
+          - globals.set:
+              id: yesterday_energy_var
+              value: !lambda 'return id(today_energy_internal).state / 1000.0;'
+      # 每天 00:00:00 清零今日电量
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - sensor.integration.reset: today_energy_internal
+# ==================== 新增：指示灯智能控制 ====================
+interval:
+  - interval: 250ms
+    then:
+      - if:
+          condition:
+            not:
+              wifi.connected:
+          then:
+            # 未连接 WiFi → 每 250ms 翻转一次 LED
+            - lambda: |
+                static bool led_blink_state = false;
+                led_blink_state = !led_blink_state;
+                if (led_blink_state) {
+                  id(status_led).turn_on();
+                } else {
+                  id(status_led).turn_off();
+                }
+          else:
+            # 已连接 WiFi → 跟随继电器状态
+            - if:
+                condition:
+                  switch.is_on: relay_template
+                then:
+                  - output.turn_on: status_led
+                else:
+                  - output.turn_off: status_led
+
+# 状态指示灯（绑定 WiFi 状态）
+#status_led:
+  #pin:
+    #number: GPIO2
+    #inverted: true
+
+# ===== 开关与继电器部分 =====
+switch:
+  # SET 引脚
+  - platform: gpio
+    id: relay_set_pin
+    pin: GPIO4
+    internal: true
+    restore_mode: ALWAYS_OFF # 上电默认关闭，具体状态由 on_boot 逻辑控制
+  
+  # RESET 引脚
+  - platform: gpio
+    id: relay_reset_pin
+    pin: GPIO5
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  # 对外暴露的继电器虚拟开关
+  - platform: template
+    name: "继电器开关"
+    id: relay_template
+    icon: "mdi:power-socket-cn"
+    optimistic: true # 直接根据命令更新状态，不等待实际硬件反馈
+    inverted: true # 反转逻辑，符合 Tasmota 的开关状态
+    turn_on_action:
+      - switch.turn_on: relay_set_pin
+      - delay: 70ms
+      - switch.turn_off: relay_set_pin
+      # 开启时记录状态为 true
+      - globals.set:
+          id: relay_memory_state
+          value: 'true'
+    turn_off_action:
+      - switch.turn_on: relay_reset_pin
+      - delay: 70ms
+      - switch.turn_off: relay_reset_pin
+      # 关闭时记录状态为 false
+      - globals.set:
+          id: relay_memory_state
+          value: 'false'
+# 上电状态选择
+select:
+  - platform: template
+    name: "上电状态"
+    id: power_on_behavior
+    options:
+      - "断电记忆"
+      - "总是开启"
+      - "总是关闭"
+    # 当你在 Home Assistant 里切换选项时触发：
+    set_action:
+      # 1. 使用 lambda 更新 HA 界面显示（x 代表你当前选中的文本）
+      - lambda: 'id(power_on_behavior).publish_state(x);'
+      # 2. 根据选中的中文字符串，转换成数字存进 Flash
+      - globals.set:
+          id: power_on_memory_index
+          value: !lambda |-
+            if (x == "总是开启") return 1;
+            if (x == "总是关闭") return 2;
+            return 0;
+
+# ===== 物理按键部分 =====
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: physical_button
+    internal: true
+    # 短按逻辑
+    on_click:
+      min_length: 50ms
+      max_length: 4999ms
+      then:
+        - switch.toggle: relay_template
+    # 长按逻辑（5秒以上）
+    on_press:
+      then:
+        - delay: 5s
+        - if:
+            condition:
+              binary_sensor.is_on: physical_button
+            then:
+              # 执行恢复出厂设置，设备会自动快闪状态指示灯并重启
+              - button.press: factory_reset_btn
+
+# ===== 电能计量部分 (BL0937) =====
+sensor:
+  - platform: hlw8012
+    sel_pin: 
+      number: GPIO14
+      inverted: true
+    cf_pin: GPIO13
+    cf1_pin: GPIO12
+    update_interval: 10s
+    # 这里的电流电阻和电压分压比为初始值，可能需要原先 Tasmota 的校准参数进行替换
+    current_resistor: 0.001 # 电流采样电阻值，单位欧姆，根据实际电路调整
+    voltage_divider: 1956 # 电压分压比，计算公式： (R1 + R2) / R2，R1 和 R2 是分压电阻的阻值，根据实际电路调整
+    voltage: 
+      name: "V电压"
+      unit_of_measurement: "V"
+      accuracy_decimals: 1
+      id: voltage_sensor
+      #filters:  # 进行线性校准，确保 ESPHome 显示的电压数值与实际电压一致
+        #- calibrate_linear: 
+           # - 0.0 -> 0.0 # 这个点是为了确保零点校准，ESPHome 显示的 0V 对应实际的 0V
+           # - 658.7 -> 231.4  #ESPHome当前显示的假数值 -> 真实的数值
+    current:
+      name: "A电流"
+      unit_of_measurement: "A"
+      accuracy_decimals: 3
+      id: current_sensor
+      #filters:
+       # - calibrate_linear:
+          #  - 0.0 -> 0.0
+           # - 3.4 -> 2.5      # ESPHome当前显示的假数值 -> 真实的数值
+      
+    power:
+      name: "W功率"
+      unit_of_measurement: "W"
+      accuracy_decimals: 1
+      id: power_sensor
+      #filters:
+        #- calibrate_linear:
+           # - 0.0 -> 0.0
+           # - 4.3 -> 1.1 # ESPHome当前显示的假数值 -> 真实的数值
+
+  # 视在功率 = U * I
+  - platform: template
+    name: "VA视在功率"
+    unit_of_measurement: "VA"
+    accuracy_decimals: 1
+    update_interval: 10s
+    id: apparent_power
+    lambda: |-  # 使用 lambda 计算视在功率，确保电压和电流都有状态才进行计算
+      if (id(voltage_sensor).has_state() && id(current_sensor).has_state()) {
+        return id(voltage_sensor).state * id(current_sensor).state;
+      }
+      return NAN;
+
+  # 功率因数 = P / S
+  - platform: template
+    name: "PF功率因数"
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-  # 使用 lambda 计算功率因数，确保功率和视在功率都有状态且视在功率不为零才进行计算
+      if (id(power_sensor).has_state() && id(apparent_power).has_state() && id(apparent_power).state > 0) {
+        float pf = id(power_sensor).state / id(apparent_power).state;
+        if (pf > 1.0) return 1.0;
+        if (pf < 0.0) return 0.0;
+        return pf;
+      }
+      return NAN;
+
+  # 无功功率 = sqrt(S² - P²)
+  - platform: template
+    name: "VAR无功功率"
+    unit_of_measurement: "var"
+    accuracy_decimals: 1
+    update_interval: 10s
+    lambda: |-  # 使用 lambda 计算无功功率，确保功率和视在功率都有状态且视在功率不小于功率才进行计算
+      if (id(power_sensor).has_state() && id(apparent_power).has_state()) {
+        float apparent = id(apparent_power).state;
+        float active = id(power_sensor).state;
+        if (apparent >= active) {
+          return sqrt(apparent * apparent - active * active);
+        }
+        return 0.0;
+      }
+      return NAN;
+
+  # --- 电量统计（后台内部计算部分） ---
+  - platform: integration
+    id: total_energy_internal
+    sensor: power_sensor
+    time_unit: h
+    restore: true
+
+  - platform: integration
+    id: today_energy_internal
+    sensor: power_sensor
+    time_unit: h
+    restore: true
+
+  # --- 对外暴露的 60 秒更新电量统计传感器 ---
+  - platform: template
+    name: "总用电量kWh.1"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 60s
+    lambda: 'return id(total_energy_internal).state / 1000.0;'
+
+  - platform: template
+    name: "kWh2今日用电量"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 60s
+    lambda: 'return id(today_energy_internal).state / 1000.0;'
+
+  - platform: template
+    name: "kWh3昨日用电量"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 60s
+    lambda: 'return id(yesterday_energy_var);'
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+text_sensor:      
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"      
+
+# ===== 按键/重置动作 =====
+button:
+  - platform: factory_reset
+    name: "恢复出厂设置"
+    id: factory_reset_btn
+    internal: true
+
+  - platform: template
+    name: "电量重置开关"
+    id: energy_reset_button
+    icon: "mdi:restart"
+    on_press:
+      # 清空总电量和今日电量积分器
+      - sensor.integration.reset: total_energy_internal
+      - sensor.integration.reset: today_energy_internal
+      # 清空昨日电量全局变量
+      - globals.set:
+          id: yesterday_energy_var
+          value: '0.0'

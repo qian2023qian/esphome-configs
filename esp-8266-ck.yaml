@@ -1,0 +1,256 @@
+esphome:
+  name: esp-8266-ck
+  friendly_name: ESP-8266-CK
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "zJAoPvODacTHfYu49Io0D5X7tMQ014Q13z/hZevtiRw="
+
+ota:
+  - platform: esphome
+    password: "2f78a1ad3302c7cd61f2932792418c27"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp-8266-Ck Fallback Hotspot"
+    password: "DeS0ad3ER6tS"
+
+captive_portal:
+
+uart:
+  tx_pin: GPIO1               # ESP32-C3发送引脚 → 接LD2410B的RX（蓝线）
+  rx_pin: GPIO3               # ESP32-C3接收引脚 → 接LD2410B的TX（绿线）
+  baud_rate: 256000            # LD2410B固定波特率，不可更改
+  stop_bits: 1                 # 停止位数
+  parity: NONE                 # 校验位：无
+# --- 输出 ---
+output:
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: OUTPUT_OPEN_DRAIN
+    id: relay_output
+    inverted: true
+
+  - platform: gpio
+    pin: GPIO4
+    id: buzzer_output
+# 使用ESPHome内置的LD2410组件（简洁写法，与成功示例一致）
+ld2410:
+
+# --- 输入 ---
+binary_sensor:
+  # 物理按钮1（短按触发）
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: true
+    id: unlock_button
+    name: "开锁按钮"
+    on_press:
+      then:
+        - switch.turn_on: door_switch
+
+  # 新增：DS-K1T810M 的开门信号输入（门禁刷合法卡后触发的继电器闭合信号）
+  - platform: gpio
+    pin:
+      number: GPIO13
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "门禁开门信号"
+    id: hikvision_open_signal
+    filters:
+      - delayed_on: 50ms          # 只在信号稳定高（触发）50ms 后才发布 ON
+      # 或者用这个更全面的：
+      # - delayed_on_off: 50ms    # ON 和 OFF 都延迟 50ms
+    on_press:
+      then:
+        - logger.log: "检测到门禁刷卡开门信号 → 执行开门"
+        - switch.turn_on: door_switch
+        # 可选：发事件给 HA，区分来源
+        # - homeassistant.event:
+        #     event: door_opened
+        #     data:
+        #       source: "hikvision_card"
+
+  # 物理按钮2（如果还想保留，可改引脚或注释掉）
+  #- platform: gpio
+  #  pin:
+  #    number: GPIO12   # 如果 GPIO13 被占用，换一个空闲引脚
+  #  ...
+
+  - platform: status
+    name: "${friendly_name} 状态"
+# LD2410B检测目标状态（与成功示例结构一致）
+  - platform: ld2410
+    has_target:                # 综合存在状态（移动或静止）
+      name: "Presence"
+    has_moving_target:         # 单独检测到移动目标
+      name: "Moving Target"
+    has_still_target:          # 单独检测到静止目标
+      name: "Still Target"
+    out_pin_presence_status:   # 雷达OUT引脚的电平状态
+      name: "Radar Output Pin Status"    
+  # 可选的：直接读取LD2410B背面OUT引脚的物理电平（需接线）
+  - platform: gpio
+    pin: GPIO15                  # 连接LD2410B OUT引脚的GPIO
+    name: "Radar Hardware Output"
+    device_class: presence
+# --- 核心开关 ---
+switch:
+  - platform: template
+    name: "锁"
+    id: door_switch
+    icon: "mdi:door"
+    optimistic: true
+    assumed_state: false
+
+    turn_on_action:
+      then:
+        - lambda: |-
+            id(door_switch).publish_state(true);
+
+        - output.turn_on: relay_output
+
+        # 如果蜂鸣器启用，则执行短鸣序列
+        - if:
+            condition:
+              switch.is_on: buzzer_switch
+            then:
+              - lambda: |-
+                  float sec = id(lock_duration).state;
+                  int cycles = (int)(sec / 0.4) + 1;
+                  if (cycles < 1) cycles = 1;
+                  if (cycles > 20) cycles = 20;
+                  id(buzzer_cycles).publish_state(cycles);
+              - script.execute: buzzer_short_beep
+
+        # 保持继电器吸合时间（与门禁的延时匹配，建议设为门禁的开门时间或稍长）
+        - delay: !lambda 'return id(lock_duration).state * 1000;'
+
+        - switch.turn_off: door_switch
+
+    turn_off_action:
+      then:
+        - output.turn_off: relay_output
+        - output.turn_off: buzzer_output   # 强制关闭蜂鸣器
+        - lambda: |-
+            id(door_switch).publish_state(false);
+  - platform: ld2410
+    #engineering_mode:          # 工程模式开关
+      #name: "Engineering Mode"
+    bluetooth:                 # 雷达内置蓝牙开关
+      name: "Control Bluetooth"          
+
+  - platform: template
+    name: "${friendly_name} 蜂鸣器"
+    id: buzzer_switch
+    icon: "mdi:bell"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# 临时用 number 来存计算的循环次数
+number:
+  - platform: template
+    id: buzzer_cycles
+    internal: true
+    min_value: 0
+    max_value: 20
+    step: 1
+    optimistic: true
+
+  - platform: template
+    name: "${friendly_name} 吸合时间"
+    id: lock_duration
+    icon: "mdi:timer"
+    min_value: 1.0
+    max_value: 10.0
+    step: 0.5
+    initial_value: 10.0
+    unit_of_measurement: "秒"
+    optimistic: true
+    set_action:
+      - lambda: |-
+          id(lock_duration).publish_state(x);
+
+# --- 蜂鸣器短鸣脚本 ---
+script:
+  - id: buzzer_short_beep
+    mode: queued
+    then:
+      - while:
+          condition:
+            lambda: 'return id(buzzer_cycles).state > 0;'
+          then:
+            - output.turn_on: buzzer_output
+            - delay: 200ms
+            - output.turn_off: buzzer_output
+            - delay: 200ms
+            - lambda: |-
+                float current = id(buzzer_cycles).state;
+                id(buzzer_cycles).publish_state(current - 1);
+sensor:
+  # LD2410B基础检测数据（与成功示例结构一致）
+  - platform: ld2410
+    moving_distance:            # 最近移动目标的距离（米）
+      name: "Moving Distance"
+    still_distance:             # 最近静止目标的距离（米）
+      name: "Still Distance"
+    moving_energy:              # 移动目标能量值（信号强度0-100）
+      name: "Move Energy"
+    still_energy:               # 静止目标能量值
+      name: "Still Energy"
+    detection_distance:         # 当前检测距离（移动优先）
+      name: "Detection Distance"
+    light:                      # 雷达板载光敏电阻值（部分型号）
+      name: "Radar Built-in Light"               
+# ==================== 【系统状态监控】====================
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);       
+
+
+#wiegand:
+  #- platform: wiegand  # ESPHome 原生支持
+    #id: my_wiegand
+    #d0:
+     # number: GPIO12     # 换成你实际接的引脚
+     # mode: INPUT
+    #d1:
+     # number: GPIO14     # 换成你实际接的引脚
+     # mode: INPUT
+   # on_tag:
+      #then:
+        #- logger.log:
+         #   format: "刷到卡号: %s (长度: %d 位)"
+          #  args: [ 'x.c_str()', 'x.length()' ]
+        # 只记录卡号到日志，可选发给 HA
+        # - homeassistant.tag_scanned: !lambda 'return x;'
+        # 或发事件记录
+       # - homeassistant.event:
+           # event: card_scanned
+           #data:
+            # card_id: !lambda 'return x;'
+             # source: "hikvision_reader"    

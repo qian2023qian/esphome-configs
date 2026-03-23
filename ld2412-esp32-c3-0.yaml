@@ -1,0 +1,397 @@
+esphome:
+  name: ld2412-esp32-c3-0
+  friendly_name: LD2412-ESP32-C3-0
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "RS7Ninj/wsjnyrjRfLt94oEnQ/6yETuXiFo1INpK72Q="
+
+ota:
+  - platform: esphome
+    password: "11aa29940613d2a38ab811ae9a2a8e5c"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Ld2412-Esp32-C3-0"
+    password: "3MwKqii3poeX"
+
+captive_portal:
+ # 红外发射器配置
+remote_transmitter:
+  pin: GPIO4  # 根据你的硬件接线修改
+  carrier_duty_percent: 50%
+
+
+ #红外接收器配置 - 使用内置dump功能
+remote_receiver:
+  pin: GPIO3
+  dump: all  # 关键：这会自动打印所有捕获到的红外原始数据
+  tolerance: 40%  # 默认25%，加大容错
+  buffer_size: 2kb  # 加大缓冲
+  filter: 200us     # 过滤噪声  
+# UART串口配置 - 用于LD2412毫米波雷达通信
+uart:
+  tx_pin: GPIO21               # ESP32-C3发送引脚 → 接LD2412的RX（蓝线）
+  rx_pin: GPIO20               # ESP32-C3接收引脚 → 接LD2412的TX（绿线）
+  baud_rate: 115200            # LD2412固定波特率，不可更改
+  stop_bits: 1                 # 停止位数
+  parity: NONE                 # 校验位：无
+# 配置I2C总线
+i2c:
+  sda: GPIO2  # D2 on NodeMCU
+  scl: GPIO1  # D1 on NodeMCU
+  scan: true  # 扫描I2C设备，用于调试
+  id: bus_a   # 给I2C总线命名 
+# Example configuration entry
+ld2412:
+
+binary_sensor:
+  - platform: ld2412
+    has_target:
+      name: "Presence"
+    has_moving_target:
+      name: "Moving Target"
+    has_still_target:
+      name: "Still Target"
+    dynamic_background_correction_status:
+      name: "Dynamic Background Correction Status"
+  - platform: gpio
+      #LD2412的一个输出引脚状态（高/低），可选监测
+    pin: GPIO10
+    name: "LD2412 Out Pin Status"
+    device_class: presence         
+  # 二进制传感器：光照水平阈值
+  - platform: analog_threshold
+    name: "adequate illumination" #光照充足
+    sensor_id: guangzhao_qiangdu           # ← 必须用 id 引用前面的 bh1750 传感器
+    threshold: 3000
+    device_class: light            
+
+sensor:  
+  - platform: ld2412
+    moving_distance:
+      name : "Moving Distance" #移动目标的距离
+    still_distance:
+      name: "Still Distance" #静止目标的距离
+    moving_energy:
+      name: "Move Energy" 
+    still_energy:
+      name: "Still Energy"
+    detection_distance:
+      name: "Detection Distance"
+    light:
+        name: light
+    gate_0:
+      move_energy:
+        name: Gate 0 move energy
+      still_energy:
+        name: Gate 0 still energy
+    gate_1:
+      move_energy:
+        name: Gate 1 move energy
+      still_energy:
+        name: Gate 1 still energy
+    gate_2:
+      move_energy:
+        name: Gate 2 move energy
+      still_energy:
+        name: Gate 2 still energy
+    gate_3:
+      move_energy:
+        name: Gate 3 move energy
+      still_energy:
+        name: Gate 3 still energy
+    gate_4:
+      move_energy:
+        name: Gate 4 move energy
+      still_energy:
+        name: Gate 4 still energy
+    gate_5:
+      move_energy:
+        name: Gate 5 move energy
+      still_energy:
+        name: Gate 5 still energy
+    gate_6:
+      move_energy:
+        name: Gate 6 move energy
+      still_energy:
+        name: Gate 6 still energy
+    gate_7:
+      move_energy:
+        name: Gate 7 move energy
+      still_energy:
+        name: Gate 7 still energy
+    gate_8:
+      move_energy:
+        name: Gate 8 move energy
+      still_energy:
+        name: Gate 8 still energy
+    gate_9:
+      move_energy:
+        name: Gate 9 move energy
+      still_energy:
+        name: Gate 9 still energy
+    gate_10:
+      move_energy:
+        name: Gate 10 move energy
+      still_energy:
+        name: Gate 10 still energy
+    gate_11:
+      move_energy:
+        name: Gate 11 move energy
+      still_energy:
+        name: Gate 11 still energy
+    gate_12:
+      move_energy:
+        name: Gate 12 move energy
+      still_energy:
+        name: Gate 12 still energy
+    gate_13:
+      move_energy:
+        name: Gate 13 move energy
+      still_energy:
+        name: Gate 13 still energy
+  # BH1750光照传感器
+  - platform: bh1750
+    name: "Illuminance" #光线亮度
+    id: guangzhao_qiangdu
+    address: 0x23  # BH1750地址，可以是0x23或0x5C
+    update_interval: 10s  # 更新间隔
+    unit_of_measurement: lx
+    accuracy_decimals: 1
+    icon: "mdi:brightness-6"
+    filters:
+      - sliding_window_moving_average:  # 滑动平均滤波
+          window_size: 5
+          send_every: 1
+      - multiply: 100  # 乘以100 
+
+# AHT30温湿度传感器
+  # AHT30 (用 variant: AHT20 处理)
+  - platform: aht10
+    variant: AHT20               # AHT30 用这个，正确
+    address: 0x38                # 十六进制写法，别写 56（虽然 0x38=56，但必须用 0xXX）
+    update_interval: 60s         # 或改 60s 更稳定
+
+    temperature:
+      id: Temperature
+      name: "Temperature"  # 温度
+      unit_of_measurement: "°C"
+      accuracy_decimals: 1
+      icon: "mdi:thermometer"
+      filters:
+      - offset: -5.6
+      - sliding_window_moving_average:
+            window_size: 7  # 取最近7次有效值做平均（可调5~15）
+            send_every: 3 # 每7次才上报一次（平滑+降低上报频率）
+            send_first_at: 1                 # 开机第一次就发
+      - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）
+    humidity:
+      id: Humidity
+      name: "Humidity" #湿度
+      unit_of_measurement: "%"
+      accuracy_decimals: 1
+      icon: "mdi:water-percent"
+      filters:
+      - sliding_window_moving_average:     # 滑动窗口平均（最常用）
+          window_size: 7                   # 取最近7次有效值做平均（可调5~15）
+          send_every: 3                    # 每7次才上报一次（平滑+降低上报频率）
+          send_first_at: 1                 # 开机第一次就发
+      - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）  
+
+# 可选：计算露点温度
+  #- platform: template
+    #name: "Dew point temperature " #露点温度
+   # unit_of_measurement: "°C"
+    #accuracy_decimals: 1
+   # lambda: |-
+      #float t = id(Temperature).state;
+     # float rh = id(Humidity).state;
+     # if (isnan(t) || isnan(rh) || t > 60.0f || t < -40.0f || rh > 100.0f || rh < 0.1f) {
+      #  return {};
+     # }
+      #// 使用Magnus公式计算露点
+     # float alpha = 17.62f;
+     #float beta = 243.12f;
+     # float temp = (alpha * t) / (beta + t) + log(rh / 100.0f);
+      #return (beta * temp) / (alpha - temp);
+    #update_interval: 60s
+    #icon: "mdi:water-thermometer"
+
+# 可选：计算热舒适指数
+  #- platform: template
+   # name: "sensible temperature" #体感温度
+    #unit_of_measurement: "°C"
+    #accuracy_decimals: 1
+    #lambda: |-
+     # float t = id(Temperature).state;
+      #float rh = id(Humidity).state;
+      #if (isnan(t) || isnan(rh)) {
+      #  return {};
+      #}
+      #return t + 0.33f * (rh / 100.0f * 6.105f * exp(17.27f * t / (237.7f + t))) - 4.0f;
+    #update_interval: 60s    
+
+   # 无线信号传感器
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+
+switch:
+  - platform: ld2412
+    engineering_mode:
+      name: Engineering Mode
+    bluetooth:
+      name: Bluetooth
+
+# 诊断传感器
+text_sensor:
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"    
+  - platform: ld2412
+    version:
+      name: Firmware Version
+    mac_address:
+      name: Mac Address    
+number:
+  - platform: ld2412
+    timeout:
+      name: Presence Timeout
+    min_distance_gate:
+      name: Minimum Distance Gate
+    max_distance_gate:
+      name: Maximum Distance Gate
+    light_threshold:
+      name: Light Threshold
+    gate_0:
+      move_threshold:
+        name: Gate 0 Move Threshold
+      still_threshold:
+        name: Gate 0 Still Threshold
+    gate_1:
+      move_threshold:
+        name: Gate 1 Move Threshold
+      still_threshold:
+        name: Gate 1 Still Threshold
+    gate_2:
+      move_threshold:
+        name: Gate 2 Move Threshold
+      still_threshold:
+        name: Gate 2 Still Threshold
+    gate_3:
+      move_threshold:
+        name: Gate 3 Move Threshold
+      still_threshold:
+        name: Gate 3 Still Threshold
+    gate_4:
+      move_threshold:
+        name: Gate 4 Move Threshold
+      still_threshold:
+        name: Gate 4 Still Threshold
+    gate_5:
+      move_threshold:
+        name: Gate 5 Move Threshold
+      still_threshold:
+        name: Gate 5 Still Threshold
+    gate_6:
+      move_threshold:
+        name: Gate 6 Move Threshold
+      still_threshold:
+        name: Gate 6 Still Threshold
+    gate_7:
+      move_threshold:
+        name: Gate 7 Move Threshold
+      still_threshold:
+        name: Gate 7 Still Threshold
+    gate_8:
+      move_threshold:
+        name: Gate 8 Move Threshold
+      still_threshold:
+        name: Gate 8 Still Threshold
+    gate_9:
+      move_threshold:
+        name: Gate 9 Move Threshold
+      still_threshold:
+        name: Gate 9 Still Threshold
+    gate_10:
+      move_threshold:
+        name: Gate 10 Move Threshold
+      still_threshold:
+        name: Gate 10 Still Threshold
+    gate_11:
+      move_threshold:
+        name: Gate 11 Move Threshold
+      still_threshold:
+        name: Gate 11 Still Threshold
+    gate_12:
+      move_threshold:
+        name: Gate 12 Move Threshold
+      still_threshold:
+        name: Gate 12 Still Threshold
+    gate_13:
+      move_threshold:
+        name: Gate 13 Move Threshold
+      still_threshold:
+        name: Gate 13 Still Threshold
+button:
+  - platform: ld2412 # LD2412特有的按钮
+    factory_reset: # 工厂重置
+      name: Factory Reset
+    restart:
+      name: Restart # 重启设备
+    query_params:
+      name: Query Params # 查询当前参数状态
+    start_dynamic_background_correction:
+      name: Start Dynamic Background Correction   # 开始动态背景校正
+
+# 红外遥控器按钮配置（按需添加修改）   
+
+  - platform: template
+    name: "Tea Bar Power"
+    icon: "mdi:power" #电源
+    on_press:
+      - remote_transmitter.transmit_pronto:
+          data: "0000 006D 0048 0000 0036 000B 0037 000B 0015 002C 0037 000B 0037 000B 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000B 0037 000A 0016 002C 0037 000A 0037 000C 0014 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0037 0118 0036 000B 0037 000C 0014 002C 0036 0009 0039 000A 0016 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000A 0037 000B 0016 002C 0037 000A 0037 000C 0014 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000A 0037 000A 0016 002C 0036 000A 0037 0009 0017 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0118 0036 000A 0037 000C 0014 002C 0036 000B 0036 000C 0014 002C 0015 002C 0015 002C 0015 002C 0015 002C 0015 002C 0036 0180"
+          repeat:
+            times: 1  # 重复发送2次，提高成功率
+select:
+  - platform: ld2412
+    out_pin_level:
+      name: Hardware Output Pin Level
+    distance_resolution:
+      name: Distance Resolution
+    light_function:
+      name: Light Function
+    baud_rate:
+      name: Baud Rate       
