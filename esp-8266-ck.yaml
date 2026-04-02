@@ -1,6 +1,6 @@
 esphome:
   name: esp-8266-ck
-  friendly_name: ESP-8266-CK
+  friendly_name: "ESP-8266 门禁控制器"
 
 esp8266:
   board: esp01_1m
@@ -27,28 +27,18 @@ wifi:
     password: "DeS0ad3ER6tS"
 
 captive_portal:
-
-uart:
-  tx_pin: GPIO1               # ESP32-C3发送引脚 → 接LD2410B的RX（蓝线）
-  rx_pin: GPIO3               # ESP32-C3接收引脚 → 接LD2410B的TX（绿线）
-  baud_rate: 256000            # LD2410B固定波特率，不可更改
-  stop_bits: 1                 # 停止位数
-  parity: NONE                 # 校验位：无
 # --- 输出 ---
 output:
   - platform: gpio
     pin:
-      number: GPIO5
+      number: GPIO5 # 继电器控制引脚
       mode: OUTPUT_OPEN_DRAIN
     id: relay_output
     inverted: true
 
   - platform: gpio
-    pin: GPIO4
+    pin: GPIO4 # 蜂鸣器控制引脚
     id: buzzer_output
-# 使用ESPHome内置的LD2410组件（简洁写法，与成功示例一致）
-ld2410:
-
 # --- 输入 ---
 binary_sensor:
   # 物理按钮1（短按触发）
@@ -93,21 +83,6 @@ binary_sensor:
 
   - platform: status
     name: "${friendly_name} 状态"
-# LD2410B检测目标状态（与成功示例结构一致）
-  - platform: ld2410
-    has_target:                # 综合存在状态（移动或静止）
-      name: "Presence"
-    has_moving_target:         # 单独检测到移动目标
-      name: "Moving Target"
-    has_still_target:          # 单独检测到静止目标
-      name: "Still Target"
-    out_pin_presence_status:   # 雷达OUT引脚的电平状态
-      name: "Radar Output Pin Status"    
-  # 可选的：直接读取LD2410B背面OUT引脚的物理电平（需接线）
-  - platform: gpio
-    pin: GPIO15                  # 连接LD2410B OUT引脚的GPIO
-    name: "Radar Hardware Output"
-    device_class: presence
 # --- 核心开关 ---
 switch:
   - platform: template
@@ -147,19 +122,13 @@ switch:
         - output.turn_off: relay_output
         - output.turn_off: buzzer_output   # 强制关闭蜂鸣器
         - lambda: |-
-            id(door_switch).publish_state(false);
-  - platform: ld2410
-    #engineering_mode:          # 工程模式开关
-      #name: "Engineering Mode"
-    bluetooth:                 # 雷达内置蓝牙开关
-      name: "Control Bluetooth"          
-
+            id(door_switch).publish_state(false);   
   - platform: template
-    name: "${friendly_name} 蜂鸣器"
+    name: "${friendly_name} 蜂鸣器"  # 蜂鸣器开关
     id: buzzer_switch
     icon: "mdi:bell"
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
+    optimistic: true # 启用乐观模式，直接切换状态，不等待实际反馈
+    restore_mode: ALWAYS_ON  #  设备重启后默认开启蜂鸣器
 
 # 临时用 number 来存计算的循环次数
 number:
@@ -202,20 +171,6 @@ script:
                 float current = id(buzzer_cycles).state;
                 id(buzzer_cycles).publish_state(current - 1);
 sensor:
-  # LD2410B基础检测数据（与成功示例结构一致）
-  - platform: ld2410
-    moving_distance:            # 最近移动目标的距离（米）
-      name: "Moving Distance"
-    still_distance:             # 最近静止目标的距离（米）
-      name: "Still Distance"
-    moving_energy:              # 移动目标能量值（信号强度0-100）
-      name: "Move Energy"
-    still_energy:               # 静止目标能量值
-      name: "Still Energy"
-    detection_distance:         # 当前检测距离（移动优先）
-      name: "Detection Distance"
-    light:                      # 雷达板载光敏电阻值（部分型号）
-      name: "Radar Built-in Light"               
 # ==================== 【系统状态监控】====================
   # 无线信号强度 (RSSI) 以 dBm 为单位
   - platform: wifi_signal

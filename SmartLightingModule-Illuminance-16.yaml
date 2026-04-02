@@ -1,5 +1,13 @@
 esphome:
-  name: s485-lt-me-16
+  name: s485-lt-me-le-4
+  on_boot:
+    priority: -100  # 在所有组件初始化完成后执行
+    then:
+      - lambda: |-
+          // 上电默认强制发布“未触发”状态，消除未知(Unknown)
+          id(fire_alarm).publish_state(false);
+          id(door_signal).publish_state(false);
+          
   on_loop:
     - lambda: |-
         while (id(uart_bus).available() > 0) {
@@ -39,12 +47,12 @@ esphome:
               };
               update_sw(id(ch1), xh & 0x80); update_sw(id(ch2), xh & 0x40);
               update_sw(id(ch3), xh & 0x20); update_sw(id(ch4), xh & 0x10);
-              update_sw(id(ch5), xh & 0x08); update_sw(id(ch6), xh & 0x04);
-              update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
-              update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
-              update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
-              update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
-              update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
+              //update_sw(id(ch5), xh & 0x08); update_sw(id(ch6), xh & 0x04);
+              //update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
+              //update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
+              //update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
+              //update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
+              //update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
               
               id(rx_buf).erase(id(rx_buf).begin(), id(rx_buf).begin() + 5);
             } else {
@@ -79,15 +87,15 @@ wifi:
   # ssid: "你的WiFi名称"
   # password: "你的WiFi密码"
   ap:
-    ssid: "S485-LT-ME-16" # AP 模式下的 WiFi 名称
+    ssid: "S485-LT-ME-4" # AP 模式下的 WiFi 名称
     password: "12345678" # AP 模式下的 WiFi 密码
   on_connect:
     - output.turn_on: wifi_led_pin
   on_disconnect:
     - output.turn_off: wifi_led_pin
 api:
-  encryption:
-    key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M="
+  #encryption:
+    #key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M=" 
 logger:
   level: DEBUG
 ota: # 开启 OTA 升级
@@ -115,7 +123,10 @@ globals:
   - id: rx_buf
     type: std::vector<uint8_t>
     initial_value: 'std::vector<uint8_t>()'
-
+  # 新增：亮度查询计数器
+  - id: bright_poll_counter
+    type: int
+    initial_value: '0'
 # 核心逻辑：解析 485 返回的状态包与亮度包
   
 
@@ -148,13 +159,21 @@ script:
       - delay: 100ms
 interval:
   - id: auto_brightness_timer
-    interval: 1min  # 1分钟间隔
+    interval: 1s  # 每秒跳一次
     then:
-      - if:
-          condition:
-            switch.is_on: auto_brightness_sw  # 检查开关状态
-          then:
-            - script.execute: query_brightness      
+      - lambda: |-
+          // 只有当开关打开时才计时
+          if (id(auto_brightness_sw).state) {
+            id(bright_poll_counter)++;
+            // 当计数达到滑块设定的秒数时，触发查询并清零
+            if (id(bright_poll_counter) >= id(brightness_interval).state) {
+              id(bright_poll_counter) = 0;
+              id(query_brightness).execute();
+            }
+          } else {
+            // 开关关闭时，计数器保持清零
+            id(bright_poll_counter) = 0;
+          }
 
 # 新增：传感器与二元传感器 (报警/联动信号)
 binary_sensor:
@@ -163,7 +182,7 @@ binary_sensor:
     id: fire_alarm
     device_class: smoke
   - platform: template
-    name: "开门信号状态."
+    name: "I/O 信号状态"
     id: door_signal
     device_class: door
 
@@ -216,6 +235,16 @@ button:
     name: "全关所有灯off"
     on_press:
       - script.execute: { id: send_cmd, cmd: 0x52, data0: 0xFF, data1: 0xFF }
+number:
+  - platform: template
+    name: "亮度查询间隔 (秒)"
+    id: brightness_interval
+    min_value: 10
+    max_value: 3600
+    step: 10             # 修改这里：每次滑动增加或减少 10 秒
+    optimistic: true
+    restore_value: true  # 断电记忆你设置的间隔时间
+    initial_value: 60    # 默认 60 秒
 
 # 16路继电器配置 (data0对应1-8路，data1对应9-16路)
 switch:
@@ -239,66 +268,66 @@ switch:
     id: ch4
     turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x10, data1: 0x00 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x10, data1: 0x00 } }
-  - platform: template
-    name: "灯光-05"
-    id: ch5
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
-  - platform: template
-    name: "灯光-06"
-    id: ch6
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
-  - platform: template
-    name: "灯光-07"
-    id: ch7
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
-  - platform: template
-    name: "灯光-08"
-    id: ch8
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
-  - platform: template
-    name: "灯光-09"
-    id: ch9
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
-  - platform: template
-    name: "灯光-10"
-    id: ch10
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
-  - platform: template
-    name: "灯光-11"
-    id: ch11
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
-  - platform: template
-    name: "灯光-12"
-    id: ch12
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
-  - platform: template
-    name: "灯光-13"
-    id: ch13
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
-  - platform: template
-    name: "灯光-14"
-    id: ch14
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
-  - platform: template
-    name: "灯光-15"
-    id: ch15
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
-  - platform: template
-    name: "灯光-16"
-    id: ch16
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
+  #- platform: template
+   # name: "灯光-05"
+   # id: ch5
+   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
+  #- platform: template
+    #name: "灯光-06"
+    #id: ch6
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
+  #- platform: template
+    #name: "灯光-07"
+    #id: ch7
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
+ # - platform: template
+    #name: "灯光-08"
+    #id: ch8
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
+ #- platform: template
+   # name: "灯光-09"
+    #id: ch9
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
+   # turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
+  #- platform: template
+   # name: "灯光-10"
+   # id: ch10
+   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
+   # turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
+  #- platform: template
+    #name: "灯光-11"
+    #id: ch11
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
+  #- platform: template
+    #name: "灯光-12"
+    #id: ch12
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
+  #- platform: template
+    #name: "灯光-13"
+    #id: ch13
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
+ # - platform: template
+    #name: "灯光-14"
+    #id: ch14
+    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
+   #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
+  #- platform: template
+   # name: "灯光-15"
+    #id: ch15
+   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
+  #- platform: template
+    #name: "灯光-16"
+    #id: ch16
+   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
+    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
   - platform: template
     name: "自动更新亮度"
     id: auto_brightness_sw
