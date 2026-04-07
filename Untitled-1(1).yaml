@@ -1,5 +1,6 @@
 substitutions:
   device_name: espmmw_05 # 设备名称，修改为你喜欢的名字
+  friendly_name: 2412毫米波雷达传感器
 
 esphome:
   name: espmmw_05 # 设备名称，修改为你喜欢的名字
