@@ -1,6 +1,6 @@
 esphome:
   name: "esp32-c3-ld2412-kt"
-  friendly_name: ESP32-C3-ld2412-kt
+  friendly_name: ESP32-C3-ld2412-客厅人存传感器
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -152,7 +152,7 @@ binary_sensor:
   - platform: analog_threshold
     name: "adequate illumination" #光照充足
     sensor_id: guangzhao_qiangdu           # ← id 引用前面的 bh1750 传感器
-    threshold: 300
+    threshold: 30
     device_class: light            
 
 sensor:  
@@ -252,7 +252,6 @@ sensor:
       - sliding_window_moving_average:  # 滑动平均滤波
           window_size: 5 # 取最近5次的平均值
           send_every: 1 # 每次更新都发送平均值
-      - multiply: 100  # 乘以100 
   # DHT22温湿度传感器
   - platform: dht
     pin: GPIO3                 # DHT22数据线连接的GPIO引脚

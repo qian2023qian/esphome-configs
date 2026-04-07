@@ -64,7 +64,7 @@ binary_sensor:
   - platform: analog_threshold
     name: "adequate illumination" #光照充足
     sensor_id: guangzhao_qiangdu           # ← 必须用 id 引用前面的 bh1750 传感器
-    threshold: 300
+    threshold: 80  # 300 lx 作为光照充足的阈值（可根据实际情况调整）
     device_class: light            
 
 sensor:  
@@ -156,14 +156,14 @@ sensor:
     name: "Illuminance" #光线亮度
     id: guangzhao_qiangdu
     address: 0x23  # BH1750地址，可以是0x23或0x5C
-    update_interval: 10s  # 更新间隔
+    update_interval: 60s  # 更新间隔
     unit_of_measurement: lx
     accuracy_decimals: 1
     icon: "mdi:brightness-6"
     filters:
       - sliding_window_moving_average:  # 滑动平均滤波
-          window_size: 5
-          send_every: 1
+          window_size: 5 # 取最近5次有效值做平均（可调3~10）
+          send_every: 1 # 每次更新都发送（不限制上报频率）
       #- multiply: 100  # 乘以100 
 
 # AHT30温湿度传感器
@@ -197,41 +197,7 @@ sensor:
           window_size: 7                   # 取最近7次有效值做平均（可调5~15）
           send_every: 3                    # 每7次才上报一次（平滑+降低上报频率）
           send_first_at: 1                 # 开机第一次就发
-      - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）  
-
-# 可选：计算露点温度
- # - platform: template
-  #  name: "Dew point temperature " #露点温度
-  #  unit_of_measurement: "°C"
-  #  accuracy_decimals: 1
-   # lambda: |-
-    #  float t = id(Temperature).state;
-    #  float rh = id(Humidity).state;
-     # if (isnan(t) || isnan(rh) || t > 60.0f || t < -40.0f || rh > 100.0f || rh < 0.1f) {
-       # return {};
-     # }
-     # // 使用Magnus公式计算露点
-     # float alpha = 17.62f;
-      #float beta = 243.12f;
-     # float temp = (alpha * t) / (beta + t) + log(rh / 100.0f);
-     # return (beta * temp) / (alpha - temp);
-   # update_interval: 60s
-   # icon: "mdi:water-thermometer"
-
-# 可选：计算热舒适指数
-  #- platform: template
-  #  name: "sensible temperature" #体感温度
-   # unit_of_measurement: "°C"
-  #  accuracy_decimals: 1
-   # lambda: |-
-    #  float t = id(Temperature).state;
-    #  float rh = id(Humidity).state;
-     # if (isnan(t) || isnan(rh)) {
-     #   return {};
-     # }
-      #return t + 0.33f * (rh / 100.0f * 6.105f * exp(17.27f * t / (237.7f + t))) - 4.0f;
-   # update_interval: 60s    
-
+      - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）    
    # 无线信号传感器
   # 无线信号强度 (RSSI) 以 dBm 为单位
   - platform: wifi_signal
@@ -351,7 +317,7 @@ number:
         name: Gate 13 Move Threshold
       still_threshold:
         name: Gate 13 Still Threshold
-button:
+button:  # LD2412特定功能的按钮
   - platform: ld2412
     factory_reset:
       name: Factory Reset
@@ -360,7 +326,7 @@ button:
     query_params:
       name: Query Params
     start_dynamic_background_correction:
-      name: Start Dynamic Background Correction             
+      name: Start Dynamic Background Correction       # 启动动态背景校正       
 select:
   - platform: ld2412
     out_pin_level:
