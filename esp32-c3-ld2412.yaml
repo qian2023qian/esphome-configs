@@ -49,20 +49,20 @@ ld2412:
 binary_sensor:
   - platform: ld2412
     has_target:
-      name: "Presence"
+      name: "存在" # 有人存在
     has_moving_target:
-      name: "Moving Target"
+      name: "移动目标" # 移动目标
     has_still_target:
-      name: "Still Target"
+      name: "静止目标." # 静止目标
     dynamic_background_correction_status:
-      name: "Dynamic Background Correction Status"
+      name: "动态背景校正状态" # 动态背景校正状态
   - platform: gpio
     pin: GPIO3
-    name: "LD2412 Out Pin Status"
+    name: "LD2412硬件输出引脚状态" 
     device_class: presence         
   # 二进制传感器：光照水平阈值
   - platform: analog_threshold
-    name: "adequate illumination" #光照充足
+    name: "光照充足~." #光照充足
     sensor_id: guangzhao_qiangdu           # ← 必须用 id 引用前面的 bh1750 传感器
     threshold: 80  # 300 lx 作为光照充足的阈值（可根据实际情况调整）
     device_class: light            
@@ -70,90 +70,90 @@ binary_sensor:
 sensor:  
   - platform: ld2412
     moving_distance:
-      name : "Moving Distance" #移动目标的距离
+      name : "移动目标距离" #移动目标的距离
     still_distance:
-      name: "Still Distance" #静止目标的距离
+      name: "静止目标距离." #静止目标的距离
     moving_energy:
-      name: "Move Energy" 
+      name: "移动能量"  # 移动目标的能量
     still_energy:
-      name: "Still Energy"
+      name: "静止能量." # 静止目标的能量
     detection_distance:
-      name: "Detection Distance"
+      name: "检测到目标的距离" # 检测到目标的距离
     light:
         name: light
     gate_0:
       move_energy:
-        name: Gate 0 move energy
+        name: 门0.移动能量 # 门0移动能量
       still_energy:
-        name: Gate 0 still energy
+        name: 门0静止能量
     gate_1:
       move_energy:
-        name: Gate 1 move energy
+        name: 门1.移动能量 # 门1移动能量
       still_energy:
-        name: Gate 1 still energy
+        name: 门1静止能量
     gate_2:
       move_energy:
-        name: Gate 2 move energy
+        name: 门2.移动能量
       still_energy:
-        name: Gate 2 still energy
+        name: 门2静止能量
     gate_3:
       move_energy:
-        name: Gate 3 move energy
+        name: 门3.移动能量 
       still_energy:
-        name: Gate 3 still energy
+        name: 门3静止能量
     gate_4:
       move_energy:
-        name: Gate 4 move energy
+        name: 门4.移动能量
       still_energy:
-        name: Gate 4 still energy
+        name: 门4静止能量
     gate_5:
       move_energy:
-        name: Gate 5 move energy
+        name: 门5.移动能量
       still_energy:
-        name: Gate 5 still energy
+        name: 门5静止能量
     gate_6:
       move_energy:
-        name: Gate 6 move energy
+        name: 门6.移动能量
       still_energy:
-        name: Gate 6 still energy
+        name: 门6静止能量
     gate_7:
       move_energy:
-        name: Gate 7 move energy
+        name: 门7.移动能量
       still_energy:
-        name: Gate 7 still energy
+        name: 门7静止能量
     gate_8:
       move_energy:
-        name: Gate 8 move energy
+        name: 门8.移动能量
       still_energy:
-        name: Gate 8 still energy
+        name: 门8静止能量
     gate_9:
       move_energy:
-        name: Gate 9 move energy
+        name: 门9.移动能量
       still_energy:
-        name: Gate 9 still energy
+        name: 门9静止能量
     gate_10:
       move_energy:
-        name: Gate 10 move energy
+        name: 门10.移动能量
       still_energy:
-        name: Gate 10 still energy
+        name: 门10静止能量
     gate_11:
       move_energy:
-        name: Gate 11 move energy
+        name: 门11.移动能量
       still_energy:
-        name: Gate 11 still energy
+        name: 门11静止能量
     gate_12:
       move_energy:
-        name: Gate 12 move energy
+        name: 门12.移动能量
       still_energy:
-        name: Gate 12 still energy
+        name: 门12静止能量
     gate_13:
       move_energy:
-        name: Gate 13 move energy
+        name: 门13.移动能量
       still_energy:
-        name: Gate 13 still energy
+        name: 门13静止能量
   # BH1750光照传感器
   - platform: bh1750
-    name: "Illuminance" #光线亮度
+    name: "光线亮度lx" #光线亮度
     id: guangzhao_qiangdu
     address: 0x23  # BH1750地址，可以是0x23或0x5C
     update_interval: 60s  # 更新间隔
@@ -175,7 +175,7 @@ sensor:
 
     temperature:
       id: Temperature
-      name: "Temperature"  # 温度
+      name: "温度"  # 温度
       unit_of_measurement: "°C"
       accuracy_decimals: 1
       icon: "mdi:thermometer"
@@ -188,7 +188,7 @@ sensor:
       - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）
     humidity:
       id: Humidity
-      name: "Humidity" #湿度
+      name: "湿度." #湿度
       unit_of_measurement: "%"
       accuracy_decimals: 1
       icon: "mdi:water-percent"
@@ -217,9 +217,9 @@ sensor:
 switch:
   - platform: ld2412
     engineering_mode:
-      name: Engineering Mode # 工程模式开关
+      name: 工程模式开关 # 工程模式开关
     bluetooth:
-      name: Bluetooth
+      name: 蓝牙开关 # 蓝牙开关
 
 # 诊断传感器
 text_sensor:
@@ -231,109 +231,109 @@ text_sensor:
   # IP地址
   - platform: wifi_info
     ip_address:
-      name: "IP"    
+      name: "IP地址"    
   - platform: ld2412
     version:
-      name: Firmware Version
+      name: 固件版本 # 固件版本
     mac_address:
-      name: Mac Address    
+      name: Mac 地址 # Mac地址    
 number:
   - platform: ld2412
     timeout:
-      name: Presence Timeout
+      name: 存在超时 # 目标消失超时
     min_distance_gate:
-      name: Minimum Distance Gate
+      name: 最小距离门
     max_distance_gate:
-      name: Maximum Distance Gate
+      name: 最大距离门.
     light_threshold:
-      name: Light Threshold
+      name: 光照水平阈值.
     gate_0:
       move_threshold:
-        name: Gate 0 Move Threshold
+        name: 门0移动阈值
       still_threshold:
-        name: Gate 0 Still Threshold
+        name: 门0.静止阈值
     gate_1:
       move_threshold:
-        name: Gate 1 Move Threshold
+        name: 门1移动阈值
       still_threshold:
-        name: Gate 1 Still Threshold
+        name: 门1.静止阈值
     gate_2:
       move_threshold:
-        name: Gate 2 Move Threshold
+        name: 门2移动阈值
       still_threshold:
-        name: Gate 2 Still Threshold
+        name: 门2.静止阈值
     gate_3:
       move_threshold:
-        name: Gate 3 Move Threshold
+        name: 门3移动阈值
       still_threshold:
-        name: Gate 3 Still Threshold
+        name: 门3.静止阈值
     gate_4:
       move_threshold:
-        name: Gate 4 Move Threshold
+        name: 门4移动阈值
       still_threshold:
-        name: Gate 4 Still Threshold
+        name: 门4.静止阈值
     gate_5:
       move_threshold:
-        name: Gate 5 Move Threshold
+        name: 门5移动阈值
       still_threshold:
-        name: Gate 5 Still Threshold
+        name: 门5.静止阈值
     gate_6:
       move_threshold:
-        name: Gate 6 Move Threshold
+        name: 门6移动阈值
       still_threshold:
-        name: Gate 6 Still Threshold
+        name: 门6.静止阈值
     gate_7:
       move_threshold:
-        name: Gate 7 Move Threshold
+        name: 门7移动阈值
       still_threshold:
-        name: Gate 7 Still Threshold
+        name: 门7.静止阈值
     gate_8:
       move_threshold:
-        name: Gate 8 Move Threshold
+        name: 门8移动阈值
       still_threshold:
-        name: Gate 8 Still Threshold
+        name: 门8.静止阈值
     gate_9:
       move_threshold:
-        name: Gate 9 Move Threshold
+        name: 门9移动阈值
       still_threshold:
-        name: Gate 9 Still Threshold
+        name: 门9.静止阈值
     gate_10:
       move_threshold:
-        name: Gate 10 Move Threshold
+        name: 门10移动阈值
       still_threshold:
-        name: Gate 10 Still Threshold
+        name: 门10.静止阈值
     gate_11:
       move_threshold:
-        name: Gate 11 Move Threshold
+        name: 门11移动阈值
       still_threshold:
-        name: Gate 11 Still Threshold
+        name: 门11.静止阈值
     gate_12:
       move_threshold:
-        name: Gate 12 Move Threshold
+        name: 门12移动阈值
       still_threshold:
-        name: Gate 12 Still Threshold
+        name: 门12.静止阈值
     gate_13:
       move_threshold:
-        name: Gate 13 Move Threshold
+        name: 门13移动阈值
       still_threshold:
-        name: Gate 13 Still Threshold
+        name: 门13.静止阈值
 button:  # LD2412特定功能的按钮
   - platform: ld2412
     factory_reset:
-      name: Factory Reset
+      name: 恢复出厂设置 # 恢复出厂设置
     restart:
-      name: Restart
+      name: 重启设备 # 重启设备
     query_params:
-      name: Query Params
+      name: 查询参数. # 查询参数
     start_dynamic_background_correction:
-      name: Start Dynamic Background Correction       # 启动动态背景校正       
+      name: 启动动态背景校正       # 启动动态背景校正       
 select:
   - platform: ld2412
     out_pin_level:
-      name: Hardware Output Pin Level
+      name: 硬件输出引脚电平 # 硬件输出引脚电平
     distance_resolution:
-      name: Distance Resolution
+      name: 距离分辨率 # 距离分辨率
     light_function:
       name: Light Function
     baud_rate:
-      name: Baud Rate
+      name: 波特率
