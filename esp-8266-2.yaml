@@ -1,7 +1,7 @@
 esphome:
   name: esp-8266-2
   friendly_name: ESP-8266-货架四路继电器
-
+#这是一个基于 ESP-8266 的四路继电器控制器，该设备配备了物理按键，方便用户直接控制继电器的开关状态。
 esp8266:
   board: esp01_1m
 

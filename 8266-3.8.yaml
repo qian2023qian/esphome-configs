@@ -1,7 +1,7 @@
 esphome:
   name: magnetic-relay
   friendly_name: 磁保继电器插座
-  
+  #这是一个基于 ESP-8266 的智能继电器插座，支持断电记忆、上电状态选择、物理按键控制以及电能计量功能。适用于需要在断电后自动恢复特定状态的场景，如智能家居中的灯光、风扇等设备控制。
   on_boot:
     # 合并为单个 block，priority -100晚于默认初始化，确保一切就绪
     - priority: -100
