@@ -1,7 +1,7 @@
 esphome:
-  name: esp32-c3-ld2412
-  friendly_name: "ESP32-C3 LD2412 阳台人存传感器"
-#这是一个基于 ESP32-C3 的智能传感器设备，集成了 LD2412 毫米波雷达、BH1750 光照传感器和 AHT30 温湿度传感器。该设备适用于阳台等环境，用于检测人员存在、移动和静止状态，同时监测环境光照和温湿度条件，为智能家居系统提供丰富的环境数据和自动化触发条件。
+  name: esp32-c3-ld2412-bh1750-
+  friendly_name: ESP32-C3-LD2412-BH1750-人体环境传感器
+#这是一个基于 ESP32-C3 的智能传感器设备，集成了 LD2412 毫米波雷达、BH1750 光照传感器。该设备适用于阳台等环境，用于检测人员存在、移动和静止状态，同时监测环境光照和温湿度条件，为智能家居系统提供丰富的环境数据和自动化触发条件。
 esp32:
   board: esp32-c3-devkitm-1
   framework:
@@ -13,11 +13,11 @@ logger:
 # Enable Home Assistant API
 api:
   encryption:
-    key: "un6TX/q7rAu/KeEClGUn+krwdudzF6xGF1u32+1Isx4="
+    key: "bU6m5DiKVKA8zsQsveREUiXsq3A0TZughhtL/BSbzsA="
 
 ota:
   - platform: esphome
-    password: "34e128fcdb1fa4edb81fdf3e2856cc51"
+    password: "a9b7e7eab1bb9f05bdea1fe1602fbc3d"
 
 wifi:
   ssid: !secret wifi_ssid
@@ -25,11 +25,11 @@ wifi:
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "Esp32-C3-Ld2412 Fallback Hotspot"
-    password: "owwBbrKkJc7v"
+    ssid: "Esp32-C3-Ld2412-Bh1750"
+    password: "12345678"
+    
 
 captive_portal:
-
 # UART串口配置 - 用于LD2412毫米波雷达通信
 uart:
   tx_pin: GPIO21               # ESP32-C3发送引脚 → 接LD2412的RX（蓝线）
@@ -164,40 +164,7 @@ sensor:
       - sliding_window_moving_average:  # 滑动平均滤波
           window_size: 5 # 取最近5次有效值做平均（可调3~10）
           send_every: 1 # 每次更新都发送（不限制上报频率）
-      #- multiply: 100  # 乘以100 
-
-# AHT30温湿度传感器
-  # AHT30 (用 variant: AHT20 处理)
-  - platform: aht10
-    variant: AHT20               # AHT30 用这个，正确
-    address: 0x38                # 十六进制写法，别写 56（虽然 0x38=56，但必须用 0xXX）
-    update_interval: 60s         # 或改 60s 更稳定
-
-    temperature:
-      id: Temperature
-      name: "温度"  # 温度
-      unit_of_measurement: "°C"
-      accuracy_decimals: 1
-      icon: "mdi:thermometer"
-      filters:
-      - offset: -5.6
-      - sliding_window_moving_average:
-            window_size: 7  # 取最近7次有效值做平均（可调5~15）
-            send_every: 3 # 每7次才上报一次（平滑+降低上报频率）
-            send_first_at: 1                 # 开机第一次就发
-      - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）
-    humidity:
-      id: Humidity
-      name: "湿度." #湿度
-      unit_of_measurement: "%"
-      accuracy_decimals: 1
-      icon: "mdi:water-percent"
-      filters:
-      - sliding_window_moving_average:     # 滑动窗口平均（最常用）
-          window_size: 7                   # 取最近7次有效值做平均（可调5~15）
-          send_every: 3                    # 每7次才上报一次（平滑+降低上报频率）
-          send_first_at: 1                 # 开机第一次就发
-      - throttle: 60s                      # 额外限制：最快每60秒才上报一次（防止太频繁）    
+      #- multiply: 100  # 乘以100     
    # 无线信号传感器
   # 无线信号强度 (RSSI) 以 dBm 为单位
   - platform: wifi_signal
@@ -337,3 +304,4 @@ select:
       name: Light Function
     baud_rate:
       name: 波特率
+    
