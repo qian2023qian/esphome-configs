@@ -24,7 +24,7 @@ wifi:
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Esp-8266-2 Fallback Hotspot"
-    password: "BMI6VRHWtlZ4"
+    password: "12345678"
 # 启用Web服务器
 web_server:
   port: 80    
