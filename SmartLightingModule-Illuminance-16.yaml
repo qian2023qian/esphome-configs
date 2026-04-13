@@ -47,12 +47,12 @@ esphome:
               };
               update_sw(id(ch1), xh & 0x80); update_sw(id(ch2), xh & 0x40);
               update_sw(id(ch3), xh & 0x20); update_sw(id(ch4), xh & 0x10);
-              //update_sw(id(ch5), xh & 0x08); update_sw(id(ch6), xh & 0x04);
-              //update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
-              //update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
-              //update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
-              //update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
-              //update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
+              update_sw(id(ch5), xh & 0x08); update_sw(id(ch6), xh & 0x04);
+              update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
+              update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
+              update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
+              update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
+              update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
               
               id(rx_buf).erase(id(rx_buf).begin(), id(rx_buf).begin() + 5);
             } else {
@@ -268,66 +268,66 @@ switch:
     id: ch4
     turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x10, data1: 0x00 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x10, data1: 0x00 } }
-  #- platform: template
-   # name: "灯光-05"
-   # id: ch5
-   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
-  #- platform: template
-    #name: "灯光-06"
-    #id: ch6
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
-  #- platform: template
-    #name: "灯光-07"
-    #id: ch7
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
- # - platform: template
-    #name: "灯光-08"
-    #id: ch8
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
- #- platform: template
-   # name: "灯光-09"
-    #id: ch9
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
-   # turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
-  #- platform: template
-   # name: "灯光-10"
-   # id: ch10
-   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
-   # turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
-  #- platform: template
-    #name: "灯光-11"
-    #id: ch11
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
-  #- platform: template
-    #name: "灯光-12"
-    #id: ch12
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
-  #- platform: template
-    #name: "灯光-13"
-    #id: ch13
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
- # - platform: template
-    #name: "灯光-14"
-    #id: ch14
-    #turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
-   #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
-  #- platform: template
-   # name: "灯光-15"
-    #id: ch15
-   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
-  #- platform: template
-    #name: "灯光-16"
-    #id: ch16
-   # turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
-    #turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
+  - platform: template
+    name: "灯光-05"
+    id: ch5
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
+  - platform: template
+    name: "灯光-06"
+    id: ch6
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
+  - platform: template
+    name: "灯光-07"
+    id: ch7
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
+  - platform: template
+    name: "灯光-08"
+    id: ch8
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
+  - platform: template
+    name: "灯光-09"
+    id: ch9
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
+  - platform: template
+    name: "灯光-10"
+    id: ch10
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
+  - platform: template
+    name: "灯光-11"
+    id: ch11
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
+  - platform: template
+    name: "灯光-12"
+    id: ch12
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
+  - platform: template
+    name: "灯光-13"
+    id: ch13
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
+  - platform: template
+    name: "灯光-14"
+    id: ch14
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
+  - platform: template
+    name: "灯光-15"
+    id: ch15
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
+  - platform: template
+    name: "灯光-16"
+    id: ch16
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
   - platform: template
     name: "自动更新亮度"
     id: auto_brightness_sw

@@ -27,7 +27,8 @@ wifi:
   ap:
     ssid: "Esp32-C3-Ld2412-Bh1750"
     password: "12345678"
-    
+web_server:
+  port: 80    
 
 captive_portal:
 # UART串口配置 - 用于LD2412毫米波雷达通信
@@ -56,8 +57,8 @@ binary_sensor:
       name: "静止目标." # 静止目标
     dynamic_background_correction_status:
       name: "动态背景校正状态" # 动态背景校正状态
-  - platform: gpio
-    pin: GPIO3
+  - platform: gpio # LD2412的一个硬件输出引脚（GPIO3）状态
+    pin: GPIO7
     name: "LD2412硬件输出引脚状态" 
     device_class: presence         
   # 二进制传感器：光照水平阈值
