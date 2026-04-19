@@ -1,0 +1,336 @@
+esphome:
+  name: s485-lt-me-le-4
+  on_boot:
+    priority: -100  # 在所有组件初始化完成后执行
+    then:
+      - lambda: |-
+          // 上电默认强制发布“未触发”状态，消除未知(Unknown)
+          id(fire_alarm).publish_state(false);
+          id(door_signal).publish_state(false);
+          
+  on_loop:
+    - lambda: |-
+        while (id(uart_bus).available() > 0) {
+          uint8_t c;
+          id(uart_bus).read_byte(&c);
+          id(rx_buf).push_back(c);
+          if(id(rx_buf).size() > 100) id(rx_buf).erase(id(rx_buf).begin());
+        }
+
+        while (id(rx_buf).size() > 0) {
+          if (id(rx_buf)[0] != 0xFA) {
+            id(rx_buf).erase(id(rx_buf).begin());
+            continue;
+          }
+          if (id(rx_buf).size() < 2) break; 
+
+          uint8_t cmd = id(rx_buf)[1];
+          uint8_t high_nibble = cmd >> 4;
+
+          // [类型1] 继电器状态与警报 (5字节)
+          if (high_nibble == 1 || high_nibble == 5 || high_nibble == 9) {
+            if (id(rx_buf).size() < 5) break; 
+            
+            uint8_t byte1 = id(rx_buf)[1]; 
+            uint8_t xh = id(rx_buf)[2];    
+            uint8_t xl = id(rx_buf)[3];    
+            uint8_t crc = id(rx_buf)[4];   
+            
+            if (crc == (uint8_t)(0xFA + byte1 + xh + xl)) {
+              bool is_fire = (high_nibble == 9);
+              bool is_door = (high_nibble == 5);
+              if (id(fire_alarm).state != is_fire) id(fire_alarm).publish_state(is_fire);
+              if (id(door_signal).state != is_door) id(door_signal).publish_state(is_door);
+
+              auto update_sw = [](esphome::template_::TemplateSwitch *sw, bool state) {
+                if (sw != nullptr && sw->state != state) sw->publish_state(state);
+              };
+              update_sw(id(ch1), xh & 0x80); update_sw(id(ch2), xh & 0x40);
+              update_sw(id(ch3), xh & 0x20); update_sw(id(ch4), xh & 0x10);
+              update_sw(id(ch5), xh & 0x08); update_sw(id(ch6), xh & 0x04);
+              update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
+              update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
+              update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
+              update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
+              update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
+              
+              id(rx_buf).erase(id(rx_buf).begin(), id(rx_buf).begin() + 5);
+            } else {
+              id(rx_buf).erase(id(rx_buf).begin());
+            }
+          } 
+          // [类型2] 亮度查询返回 (8字节) -> 取消严格校验，增加容错
+          else if (cmd == 0xEA) {
+            if (id(rx_buf).size() < 8) break; // 等待收满 8 字节
+            
+            // 直接提取第 7 个字节 (索引为6)
+            uint8_t bright_val = id(rx_buf)[6]; 
+            
+            if (id(brightness_sensor).state != bright_val) {
+              id(brightness_sensor).publish_state(bright_val);
+            }
+            
+            id(rx_buf).erase(id(rx_buf).begin(), id(rx_buf).begin() + 8);
+          } 
+          else {
+            id(rx_buf).erase(id(rx_buf).begin());
+          }
+        }
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+# WiFi 配置：连接成功输出高电平
+wifi:
+  # ssid: "你的WiFi名称"
+  # password: "你的WiFi密码"
+  ap:
+    ssid: "S485-LT-ME-4" # AP 模式下的 WiFi 名称
+    password: "12345678" # AP 模式下的 WiFi 密码
+  on_connect:
+    - output.turn_on: wifi_led_pin
+  on_disconnect:
+    - output.turn_off: wifi_led_pin
+api:
+  #encryption:
+    #key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M=" 
+logger:
+  level: DEBUG
+ota: # 开启 OTA 升级
+  - platform: esphome
+    password: "12345678" # OTA 密码，建议修改为更安全的密码
+captive_portal: # 启用 WiFi 配置门户
+web_server:
+  port: 80          
+
+# WiFi 状态指示灯 (GPIO10)
+output:
+  - platform: gpio
+    pin: GPIO10
+    id: wifi_led_pin
+
+# 串口配置
+uart:
+  id: uart_bus
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 9600
+
+# 全局变量：只保留数据缓冲区
+globals:
+  - id: rx_buf
+    type: std::vector<uint8_t>
+    initial_value: 'std::vector<uint8_t>()'
+  # 新增：亮度查询计数器
+  - id: bright_poll_counter
+    type: int
+    initial_value: '0'
+# 核心逻辑：解析 485 返回的状态包与亮度包
+  
+
+# 脚本：发送命令排队
+script:
+  - id: send_cmd
+    mode: queued
+    max_runs: 32
+    parameters:
+      cmd: int
+      data0: int
+      data1: int
+    then:
+      - lambda: |-
+          uint8_t payload[] = {0xF5, (uint8_t)cmd, (uint8_t)data0, (uint8_t)data1, (uint8_t)(0xF5 + cmd + data0 + data1)};
+          id(uart_bus).write_array(payload, 5);
+      - delay: 100ms
+
+  - id: query_state
+    mode: queued
+    then:
+      - lambda: 'uint8_t p[] = {0xF5, 0x10, 0x00, 0x00, 0x05}; id(uart_bus).write_array(p, 5);'
+      - delay: 100ms
+
+  - id: query_brightness
+    mode: queued
+    then:
+      # 发送亮度查询: F5 EE 00 01 00 1B FF
+      - lambda: 'uint8_t p[] = {0xF5, 0xEE, 0x00, 0x01, 0x00, 0x1B, 0xFF}; id(uart_bus).write_array(p, 7);'
+      - delay: 100ms
+interval:
+  - id: auto_brightness_timer
+    interval: 1s  # 每秒跳一次
+    then:
+      - lambda: |-
+          // 只有当开关打开时才计时
+          if (id(auto_brightness_sw).state) {
+            id(bright_poll_counter)++;
+            // 当计数达到滑块设定的秒数时，触发查询并清零
+            if (id(bright_poll_counter) >= id(brightness_interval).state) {
+              id(bright_poll_counter) = 0;
+              id(query_brightness).execute();
+            }
+          } else {
+            // 开关关闭时，计数器保持清零
+            id(bright_poll_counter) = 0;
+          }
+
+# 新增：传感器与二元传感器 (报警/联动信号)
+binary_sensor:
+  - platform: template
+    name: "消防联动状态"
+    id: fire_alarm
+    device_class: smoke
+  - platform: template
+    name: "I/O 信号状态"
+    id: door_signal
+    device_class: door
+
+sensor:
+  - platform: template
+    name: "环境亮度"
+    id: brightness_sensor
+    unit_of_measurement: "lx"  # 依实际情况可改 lx
+    accuracy_decimals: 0
+    icon: "mdi:brightness-6"
+    # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+# 诊断传感器
+text_sensor:
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP"
+
+# 按钮：手动查询
+button:
+  - platform: template
+    name: "手动刷新(状态+亮度)"
+    on_press:
+      - script.execute: query_state
+      - delay: 300ms   # 关键修复：给 485 总线留出回传数据的时间
+      - script.execute: query_brightness
+  - platform: template
+    name: "全开所有灯on"
+    on_press:
+      - script.execute: { id: send_cmd, cmd: 0x51, data0: 0xFF, data1: 0xFF }
+  - platform: template
+    name: "全关所有灯off"
+    on_press:
+      - script.execute: { id: send_cmd, cmd: 0x52, data0: 0xFF, data1: 0xFF }
+number:
+  - platform: template
+    name: "亮度查询间隔 (秒)"
+    id: brightness_interval
+    min_value: 10
+    max_value: 3600
+    step: 10             # 修改这里：每次滑动增加或减少 10 秒
+    optimistic: true
+    restore_value: true  # 断电记忆你设置的间隔时间
+    initial_value: 60    # 默认 60 秒
+
+# 16路继电器配置 (data0对应1-8路，data1对应9-16路)
+switch:
+  - platform: template
+    name: "灯光-01"
+    id: ch1
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x80, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x80, data1: 0x00 } }
+  - platform: template
+    name: "灯光-02"
+    id: ch2
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x40, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x40, data1: 0x00 } }
+  - platform: template
+    name: "灯光-03"
+    id: ch3
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x20, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x20, data1: 0x00 } }
+  - platform: template
+    name: "灯光-04"
+    id: ch4
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x10, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x10, data1: 0x00 } }
+  - platform: template
+    name: "灯光-05"
+    id: ch5
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
+  - platform: template
+    name: "灯光-06"
+    id: ch6
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
+  - platform: template
+    name: "灯光-07"
+    id: ch7
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
+  - platform: template
+    name: "灯光-08"
+    id: ch8
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
+  - platform: template
+    name: "灯光-09"
+    id: ch9
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
+  - platform: template
+    name: "灯光-10"
+    id: ch10
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
+  - platform: template
+    name: "灯光-11"
+    id: ch11
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
+  - platform: template
+    name: "灯光-12"
+    id: ch12
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
+  - platform: template
+    name: "灯光-13"
+    id: ch13
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
+  - platform: template
+    name: "灯光-14"
+    id: ch14
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
+  - platform: template
+    name: "灯光-15"
+    id: ch15
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
+  - platform: template
+    name: "灯光-16"
+    id: ch16
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
+  - platform: template
+    name: "自动更新亮度"
+    id: auto_brightness_sw
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON  # 断电记忆，默认开启
+    icon: "mdi:brightness-auto"
