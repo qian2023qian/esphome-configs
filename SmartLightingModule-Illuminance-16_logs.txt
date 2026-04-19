@@ -1,0 +1,341 @@
+[19:20:55][I][logger:121]: Log initialized
+[19:20:55][C][safe_mode:084]: Unsuccessful boot attempts: 1
+[19:20:55][D][esp32.preferences:149]: Writing 1 items: 0 cached, 1 written, 0 failed
+[19:20:55][I][app:077]: Running through setup()
+[19:20:55][C][component:208]: Setup uart took 1ms
+[19:20:55][C][component:208]: Setup preferences took 0ms
+[19:20:55][C][component:208]: Setup gpio.output took 0ms
+[19:20:55][C][component:208]: Setup script took 0ms
+[19:20:55][C][component:208]: Setup script took [C][component:208]: Setup esphome.coroutine took 1401ms
+[19:20:55][I][app:124]: setup() finished successfully!
+[19:20:55][D][esp32.preferences:149]: Writing 17 items: 17 cached, 0 written, 0 failed
+[19:20:55][W][component:342]: wifi set Warning flag: scanning for networks
+[19:20:55][I][app:194]: ESPHome version 2025.12.4 compiled on Apr 17 2026, 14:06:56
+[19:20:55][C][logger:261]: Logger:
+[19:20:55][C][logger:261]:  Max Level: DEBUG
+[19:20:55][C][logger:261]:  Initial Level: DEBUG
+[19:20:55][C][logger:267]:   Log Baud Rate: 115200
+[19:20:55][C][logger:267]:  Hardware UART: USB_SERIAL_JTAG
+[19:20:55][C][logger:274]:   Task Log Buffer Size: 768
+[19:20:55][C][uart.idf:238]: UART Bus 0:
+[19:20:55][C][uart.idf:239]:   TX Pin: GPIO21
+[19:20:55][C][uart.idf:240]:   RX Pin: GPIO20
+[19:20:55][C][uart.idf:243]:   RX Buffer Size: 256
+[19:20:55][C][uart.idf:243]:  RX Full Threshold: 8
+[19:20:55][C][uart.idf:243]:  RX Timeout: 2
+[19:20:55][C][uart.idf:249]:   Baud Rate: 9600 baud
+[19:20:55][C][uart.idf:249]:  Data Bits: 8
+[19:20:55][C][uart.idf:249]:  Parity: NONE
+[19:20:55][C][uart.idf:249]:  Stop bits: 1
+[19:20:55][C][gpio.output:010]: Binary Output:
+[19:20:55][C][gpio.output:011]:   Pin: GPIO10
+[19:20:55][C][template.binary_sensor:016]: Template Binary Sensor '消防联动状态'
+[19:20:55][C][template.binary_sensor:019]:   Device Class: 'smoke'
+[19:20:55][C][template.binary_sensor:016]: Template Binary Sensor 'I/O 信号状态'
+[19:20:55][C][template.binary_sensor:019]:   Device Class: 'door'
+[19:20:55][C][template.sensor:017]: Template Sensor '环境亮度'
+[19:20:55][C][template.sensor:017]:  State Class: ''
+[19:20:55][C][template.sensor:017]:  Unit of Measurement: 'lx'
+[19:20:55][C][template.sensor:017]:  Accuracy Decimals: 0
+[19:20:55][C][template.sensor:031]:   Icon: 'mdi:brightness-6'
+[19:20:55][C][template.sensor:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '56.亮度查询间隔 (秒)'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '4.光敏-01-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '5.光敏-01-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '7.光敏-02-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '8.光敏-02-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '10.光敏-03-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '11.光敏-03-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '13.光敏-04-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '14.光敏-04-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '16.光敏-05-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '17.光敏-05-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '19.光敏-06-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '20.光敏-06-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '22.光敏-07-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '23.光敏-07-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '25.光敏-08-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '26.光敏-08-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '28.光敏-09-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '29.光敏-09-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '30.光敏-10-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '31.光敏-10-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '33.光敏-11-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '34.光敏-11-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '36.光敏-12-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '37.光敏-12-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '39.光敏-13-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '40.光敏-13-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '42.光敏-14-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '43.光敏-14-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '45.光敏-15-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '46.光敏-15-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '49.光敏-16-下限'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.number:016]: Template Number '50.光敏-16-上限.'
+[19:20:55][C][template.number:049]:   Optimistic: YES
+[19:20:55][C][template.number:399]:   Update Interval: 60.0s
+[19:20:55][C][template.select:054]: Template Select '52.继电器启动间隔选择'
+[19:20:55][C][template.select:399]:   Update Interval: 60.0s
+[19:20:55][C][template.select:058]:   Optimistic: YES
+[19:20:55][C][template.select:058]:  Initial Option: 100ms
+[19:20:55][C][template.select:058]:  Restore Value: YES
+[19:20:55][C][template.select:054]: Template Select '54.消防输入模式设置'
+[19:20:55][C][template.select:399]:   Update Interval: 60.0s
+[19:20:55][C][template.select:058]:   Optimistic: YES
+[19:20:55][C][template.select:058]:  Initial Option: 00: 关关
+[19:20:55][C][template.select:058]:  Restore Value: YES
+[19:20:55][C][template.select:054]: Template Select '53.外部输入模式设置..'
+[19:20:55][C][template.select:399]:   Update Interval: 60.0s
+[19:20:55][C][template.select:058]:   Optimistic: YES
+[19:20:55][C][template.select:058]:  Initial Option: 00: 关关.
+[19:20:55][C][template.select:058]:  Restore Value: YES
+[19:20:55][C][gpio.binary_sensor:016]: GPIO Binary Sensor 'WiFi重置按键GPIO7'
+[19:20:55][C][gpio.binary_sensor:072]:   Pin: GPIO7
+[19:20:55][C][gpio.binary_sensor:073]:   Mode: interrupt
+[19:20:55][C][gpio.binary_sensor:075]:   Interrupt Type: ANY_EDGE
+[19:20:55][C][template.switch:092]: Template Switch '灯光-01'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-02'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-03'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-04'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-05'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-06'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-07'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-08'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-09'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-10'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-11'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-12'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-13'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-14'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-15'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '灯光-16'
+[19:20:55][C][template.switch:092]:  Restore Mode: always OFF
+[19:20:55][C][template.switch:055]:   Optimistic: NO
+[19:20:55][C][template.switch:092]: Template Switch '55.自动更新亮度'
+[19:20:55][C][template.switch:092]:  Restore Mode: restore defaults to ON
+[19:20:55][C][template.switch:100]:   Icon: 'mdi:brightness-auto'
+[19:20:55][C][template.switch:055]:   Optimistic: YES
+[19:20:55][C][template.switch:092]: Template Switch '3.光敏-01-启用'
+[19:20:55][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:55][C][template.switch:055]:   Optimistic: YES
+[19:20:55][C][template.switch:092]: Template Switch '6.光敏-02-启用'
+[19:20:55][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:55][C][template.switch:055]:   Optimistic: YES
+[19:20:55][C][template.switch:092]: Template Switch '9.光敏-03-启用'
+[19:20:55][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:55][C][template.switch:055]:   Optimistic: YES
+[19:20:55][C][template.switch:092]: Template Switch '12.光敏-04-启用'
+[19:20:55][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:55][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '15.光敏-05-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '18.光敏-06-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '21.光敏-07-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '24.光敏-08-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '27.光敏-09-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '30.光敏-10-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '33.光敏-11-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '36.光敏-12-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '39.光敏-13-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '42.光敏-14-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '45.光敏-15-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][template.switch:092]: Template Switch '48.光敏-16-启用'
+[19:20:56][C][template.switch:092]:  Restore Mode: restore defaults to OFF
+[19:20:56][C][template.switch:055]:   Optimistic: YES
+[19:20:56][C][wifi_info:016]: BSSID 'Wireless BSSID'
+[19:20:56][C][wifi_info:016]: IP Address 'IP'
+[19:20:56][C][factory_reset.button:014]: Factory Reset Button '58.WiFi工厂重置'
+[19:20:56][C][factory_reset.button:017]:   Icon: 'mdi:restart-alert'
+[19:20:56][C][restart.button:014]: Restart Button '57.重启设备'
+[19:20:56][C][restart.button:017]:   Icon: 'mdi:restart'
+[19:20:56][C][captive_portal:118]: Captive Portal:
+[19:20:56][C][wifi:1132]: WiFi:
+[19:20:56][C][wifi:1132]:  Connected: NO
+[19:20:56][C][wifi:897]:   Local MAC: 10:B4:1D:15:C6:E4
+[19:20:56][C][wifi:908]:   SSID: ''[redacted]
+[19:20:56][C][wifi:908]:  BSSID: 00:00:00:00:00:00[redacted]
+[19:20:56][C][wifi:908]:  Hostname: 's485-lt-me-le-16'
+[19:20:56][C][wifi:908]:  Signal strength: -127 dB ××××
+[19:20:56][C][wifi:908]:  Channel: 14
+[19:20:56][C][wifi:908]:  Subnet: 0.0.0.0
+[19:20:56][C][wifi:908]:  Gateway: 0.0.0.0
+[19:20:56][C][wifi:908]:  DNS1: 0.0.0.0
+[19:20:56][C][wifi:908]:  DNS2: 0.0.0.0
+[19:20:56][C][web_server:335]: Web Server:
+[19:20:56][C][web_server:335]:  Address: s485-lt-me-le-16.local:80
+[19:20:56][C][esphome.ota:092]: Over-The-Air updates:
+[19:20:56][C][esphome.ota:092]:  Address: s485-lt-me-le-16.local:3232
+[19:20:56][C][esphome.ota:092]:  Version: 2
+[19:20:56][C][esphome.ota:099]:   Password configured
+[19:20:56][C][safe_mode:018]: Safe Mode:
+[19:20:56][C][safe_mode:018]:  Successful after: 60s
+[19:20:56][C][safe_mode:018]:  Invoke after: 10 attempts
+[19:20:56][C][safe_mode:018]:  Duration: 300s
+[19:20:56][C][web_server.ota:241]: Web Server OTA
+[19:20:56][C][api:211]: Server:
+[19:20:56][C][api:211]:  Address: s485-lt-me-le-16.local:6053
+[19:20:56][C][api:211]:  Listen backlog: 4
+[19:20:56][C][api:211]:  Max connections: 8
+[19:20:56][C][api:223]:   Noise encryption: NO
+[19:20:56][C][wifi_signal.sensor:017]: WiFi Signal 'Wireless RSSI'
+[19:20:56][C][wifi_signal.sensor:017]:  State Class: 'measurement'
+[19:20:56][C][wifi_signal.sensor:017]:  Unit of Measurement: 'dBm'
+[19:20:56][C][wifi_signal.sensor:017]:  Accuracy Decimals: 0
+[19:20:56][C][wifi_signal.sensor:027]:   Device Class: 'signal_strength'
+[19:20:56][C][wifi_signal.sensor:017]: WiFi Signal 'Wireless Signal'
+[19:20:56][C][wifi_signal.sensor:017]:  State Class: 'measurement'
+[19:20:56][C][wifi_signal.sensor:017]:  Unit of Measurement: '%'
+[19:20:56][C][wifi_signal.sensor:017]:  Accuracy Decimals: 0
+[19:20:56][C][wifi_signal.sensor:027]:   Device Class: 'signal_strength'
+[19:20:56][C][mdns:177]: mDNS:
+[19:20:56][C][mdns:177]:  Hostname: s485-lt-me-le-16
+[19:20:56][D][wifi:1068]: Found networks:
+[19:20:56][I][wifi:1041]: - 'HUAWEI-AX30Pro' (94:E4:BA:05:05:C4) [redacted]▂▄▆█
+[19:20:56][D][wifi:1044]:   Channel:  6, RSSI: -57 dB, Priority:    0
+[19:20:56][I][wifi:1041]: - 'HUAWEI-AX30Pro' (A8:5A:E0:F0:58:64) [redacted]▂▄▆█
+[19:20:56][D][wifi:1044]:   Channel:  6, RSSI: -67 dB, Priority:    0
+[19:20:56][D][wifi:1046]: - ''[redacted] (94:E4:BA:05:05:C9) [redacted]▂▄▆█
+[19:20:56][D][wifi:1046]: - ''[redacted] (A8:5A:E0:F0:58:69) [redacted]▂▄▆█
+[19:20:56][D][wifi:1046]: - 'CMCC-75G7'[redacted] (24:A3:F0:12:75:09) [redacted]▂▄▆█
+[19:20:56][D][wifi:1361]: Retry phase: INITIAL_CONNECT → SCAN_CONNECTING
+[19:20:56][I][wifi:774]: Connecting to 'HUAWEI-AX30Pro'[redacted] (94:E4:BA:05:05:C4)[redacted] (priority 0, attempt 1/2 in phase SCAN_CONNECTING)...
+[19:20:57][D][text_sensor:097]: 'Wireless BSSID': Sending state '94:E4:BA:05:05:C4'
+[19:20:57][D][sensor:135]: 'Wireless RSSI': Sending state -51.00000 dBm with 0 decimals of accuracy
+[19:20:57][D][sensor:135]: 'Wireless Signal': Sending state 98.00000 % with 0 decimals of accuracy
+[19:20:58][D][text_sensor:097]: 'IP': Sending state '192.168.3.4'
+[19:20:58][I][wifi:1149]: Connected
+[19:20:58][C][wifi:897]:   Local MAC: 10:B4:1D:15:C6:E4
+[19:20:58][C][wifi:904]:   IP Address: 192.168.3.4
+[19:20:58][C][wifi:908]:   SSID: 'HUAWEI-AX30Pro'[redacted]
+[19:20:58][C][wifi:908]:  BSSID: 94:E4:BA:05:05:C4[redacted]
+[19:20:58][C][wifi:908]:  Hostname: 's485-lt-me-le-16'
+[19:20:58][C][wifi:908]:  Signal strength: -50 dB ▂▄▆█
+[19:20:58][C][wifi:908]:  Channel: 6
+[19:20:58][C][wifi:908]:  Subnet: 255.255.255.0
+[19:20:58][C][wifi:908]:  Gateway: 192.168.3.1
+[19:20:58][C][wifi:908]:  DNS1: 192.168.3.1
+[19:20:58][C][wifi:908]:  DNS2: 0.0.0.0
+[19:20:58][D][wifi:1173]: Disabling AP
+[19:20:58][W][component:373]: wifi cleared Warning flag
+[19:20:59][D][api:136]: Accept 192.168.3.44
+[19:20:59][W][component:373]: api cleared Warning flag
+[19:20:59][D][api.connection:1398]: Home Assistant 2026.3.0 (192.168.3.44) connected
+[19:21:53][I][safe_mode:042]: Boot seems successful; resetting boot loop counter
+[19:21:53][D][esp32.preferences:149]: Writing 1 items: 0 cached, 1 written, 0 failed
+[19:21:55][D][sensor:135]: 'Wireless RSSI': Sending state -65.00000 dBm with 0 decimals of accuracy
+[19:21:56][D][sensor:135]: 'Wireless Signal': Sending state 70.00000 % with 0 decimals of accuracy

@@ -72,8 +72,8 @@ api:
   encryption:
     key: "Iiho9bZt//QPgutJZWiHSMkuMQDzuEMfyQnvuZoG3TA="  # 建议后续设置一个安全的加密密钥
 wifi:
-  #ssid: !secret wifi_ssid
-  #password: !secret wifi_password
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
   # 不预设账号密码，让其直接进入 AP 模式
   ap:
     ssid: "MagneticRelay"
@@ -260,29 +260,29 @@ sensor:
       unit_of_measurement: "V"
       accuracy_decimals: 1
       id: voltage_sensor
-      #filters:  # 进行线性校准，确保 ESPHome 显示的电压数值与实际电压一致
-        #- calibrate_linear: 
-           # - 0.0 -> 0.0 # 这个点是为了确保零点校准，ESPHome 显示的 0V 对应实际的 0V
-           # - 658.7 -> 231.4  #ESPHome当前显示的假数值 -> 真实的数值
+      filters:  # 进行线性校准，确保 ESPHome 显示的电压数值与实际电压一致，第一次上电先注释再根据显示的假数值调整校准点
+        - calibrate_linear: 
+            - 0.0 -> 0.0 # 这个点是为了确保零点校准，ESPHome 显示的 0V 对应实际的 0V
+            - 658.7 -> 231.4  #ESPHome当前显示的假数值 -> 真实的数值
     current:
       name: "A电流"
       unit_of_measurement: "A"
       accuracy_decimals: 3
       id: current_sensor
-      #filters:
-       # - calibrate_linear:
-          #  - 0.0 -> 0.0
-           # - 3.4 -> 2.5      # ESPHome当前显示的假数值 -> 真实的数值
+      filters:
+        - calibrate_linear:
+            - 0.0 -> 0.0
+            - 3.4 -> 2.5      # ESPHome当前显示的假数值 -> 真实的数值
       
     power:
       name: "W功率"
       unit_of_measurement: "W"
       accuracy_decimals: 1
       id: power_sensor
-      #filters:
-        #- calibrate_linear:
-           # - 0.0 -> 0.0
-           # - 4.3 -> 1.1 # ESPHome当前显示的假数值 -> 真实的数值
+      filters:
+        - calibrate_linear:
+            - 0.0 -> 0.0
+            - 4.3 -> 1.1 # ESPHome当前显示的假数值 -> 真实的数值
 
   # 视在功率 = U * I
   - platform: template

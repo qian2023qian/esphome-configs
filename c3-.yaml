@@ -1,0 +1,308 @@
+esphome:
+  name: c3-bh1750
+  friendly_name: c3-楼梯人存环境传感器
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+    
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "C3-bh1750"
+    password: !secret ap_password
+
+captive_portal:
+# UART串口配置 - 用于LD2412毫米波雷达通信
+uart:
+  tx_pin: GPIO21               # ESP32-C3发送引脚 → 接LD2412的RX（蓝线）
+  rx_pin: GPIO20               # ESP32-C3接收引脚 → 接LD2412的TX（绿线）
+  baud_rate: 115200            # LD2412固定波特率，不可更改
+  stop_bits: 1                 # 停止位数
+  parity: NONE                 # 校验位：无
+# 配置I2C总线
+i2c:
+  sda: GPIO7  # D2 on NodeMCU
+  scl: GPIO8  # D1 on NodeMCU
+  scan: true  # 扫描I2C设备，用于调试
+  id: bus_a   # 给I2C总线命名 
+# Example configuration entry
+ld2412:
+
+binary_sensor:
+  - platform: ld2412
+    has_target:
+      name: "存在" # 有人存在
+    has_moving_target:
+      name: "移动目标" # 移动目标
+    has_still_target:
+      name: "静止目标." # 静止目标
+    dynamic_background_correction_status:
+      name: "动态背景校正状态" # 动态背景校正状态
+  - platform: gpio # LD2412的一个硬件输出引脚（GPIO3）状态
+    pin: GPIO2
+    name: "LD2412硬件输出引脚状态" 
+    device_class: presence         
+  # 二进制传感器：光照水平阈值
+  - platform: analog_threshold
+    name: "光照充足~." #光照充足
+    sensor_id: guangzhao_qiangdu           # ← 必须用 id 引用前面的 bh1750 传感器
+    threshold: 80  # 300 lx 作为光照充足的阈值（可根据实际情况调整）
+    device_class: light            
+
+sensor:  
+  - platform: ld2412
+    moving_distance:
+      name : "移动目标距离" #移动目标的距离
+    still_distance:
+      name: "静止目标距离." #静止目标的距离
+    moving_energy:
+      name: "移动能量"  # 移动目标的能量
+    still_energy:
+      name: "静止能量." # 静止目标的能量
+    detection_distance:
+      name: "检测到目标的距离" # 检测到目标的距离
+    light:
+        name: light
+    gate_0:
+      move_energy:
+        name: 门0.移动能量 # 门0移动能量
+      still_energy:
+        name: 门0静止能量
+    gate_1:
+      move_energy:
+        name: 门1.移动能量 # 门1移动能量
+      still_energy:
+        name: 门1静止能量
+    gate_2:
+      move_energy:
+        name: 门2.移动能量
+      still_energy:
+        name: 门2静止能量
+    gate_3:
+      move_energy:
+        name: 门3.移动能量 
+      still_energy:
+        name: 门3静止能量
+    gate_4:
+      move_energy:
+        name: 门4.移动能量
+      still_energy:
+        name: 门4静止能量
+    gate_5:
+      move_energy:
+        name: 门5.移动能量
+      still_energy:
+        name: 门5静止能量
+    gate_6:
+      move_energy:
+        name: 门6.移动能量
+      still_energy:
+        name: 门6静止能量
+    gate_7:
+      move_energy:
+        name: 门7.移动能量
+      still_energy:
+        name: 门7静止能量
+    gate_8:
+      move_energy:
+        name: 门8.移动能量
+      still_energy:
+        name: 门8静止能量
+    gate_9:
+      move_energy:
+        name: 门9.移动能量
+      still_energy:
+        name: 门9静止能量
+    gate_10:
+      move_energy:
+        name: 门10.移动能量
+      still_energy:
+        name: 门10静止能量
+    gate_11:
+      move_energy:
+        name: 门11.移动能量
+      still_energy:
+        name: 门11静止能量
+    gate_12:
+      move_energy:
+        name: 门12.移动能量
+      still_energy:
+        name: 门12静止能量
+    gate_13:
+      move_energy:
+        name: 门13.移动能量
+      still_energy:
+        name: 门13静止能量
+  # BH1750光照传感器
+  - platform: bh1750
+    name: "光线亮度lx" #光线亮度
+    id: guangzhao_qiangdu
+    address: 0x23  # BH1750地址，可以是0x23或0x5C
+    update_interval: 60s  # 更新间隔
+    unit_of_measurement: lx
+    accuracy_decimals: 1
+    icon: "mdi:brightness-6"
+    filters:
+      - sliding_window_moving_average:  # 滑动平均滤波
+          window_size: 5 # 取最近5次有效值做平均（可调3~10）
+          send_every: 1 # 每次更新都发送（不限制上报频率）
+      #- multiply: 100  # 乘以100     
+   # 无线信号传感器
+  # 无线信号强度 (RSSI) 以 dBm 为单位
+  - platform: wifi_signal
+    name: "Wireless RSSI"
+    unit_of_measurement: "dBm"
+    update_interval: 60s
+  
+  # 无线信号强度百分比
+  - platform: wifi_signal
+    name: "Wireless Signal"
+    unit_of_measurement: "%"
+    update_interval: 60s
+    # 将 dBm 值转换为百分比
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+
+switch:
+  - platform: ld2412
+    engineering_mode:
+      name: 工程模式开关 # 工程模式开关
+    bluetooth:
+      name: 蓝牙开关 # 蓝牙开关
+
+# 诊断传感器
+text_sensor:
+  # 无线 BSSID (接入点的MAC地址)
+  - platform: wifi_info
+    bssid:
+      name: "Wireless BSSID"
+  
+  # IP地址
+  - platform: wifi_info
+    ip_address:
+      name: "IP地址"    
+  - platform: ld2412
+    version:
+      name: 固件版本 # 固件版本
+    mac_address:
+      name: Mac 地址 # Mac地址    
+number:
+  - platform: ld2412
+    timeout:
+      name: 存在超时 # 目标消失超时
+    min_distance_gate:
+      name: 最小距离门
+    max_distance_gate:
+      name: 最大距离门.
+    light_threshold:
+      name: 光照水平阈值.
+    gate_0:
+      move_threshold:
+        name: 门0移动阈值
+      still_threshold:
+        name: 门0.静止阈值
+    gate_1:
+      move_threshold:
+        name: 门1移动阈值
+      still_threshold:
+        name: 门1.静止阈值
+    gate_2:
+      move_threshold:
+        name: 门2移动阈值
+      still_threshold:
+        name: 门2.静止阈值
+    gate_3:
+      move_threshold:
+        name: 门3移动阈值
+      still_threshold:
+        name: 门3.静止阈值
+    gate_4:
+      move_threshold:
+        name: 门4移动阈值
+      still_threshold:
+        name: 门4.静止阈值
+    gate_5:
+      move_threshold:
+        name: 门5移动阈值
+      still_threshold:
+        name: 门5.静止阈值
+    gate_6:
+      move_threshold:
+        name: 门6移动阈值
+      still_threshold:
+        name: 门6.静止阈值
+    gate_7:
+      move_threshold:
+        name: 门7移动阈值
+      still_threshold:
+        name: 门7.静止阈值
+    gate_8:
+      move_threshold:
+        name: 门8移动阈值
+      still_threshold:
+        name: 门8.静止阈值
+    gate_9:
+      move_threshold:
+        name: 门9移动阈值
+      still_threshold:
+        name: 门9.静止阈值
+    gate_10:
+      move_threshold:
+        name: 门10移动阈值
+      still_threshold:
+        name: 门10.静止阈值
+    gate_11:
+      move_threshold:
+        name: 门11移动阈值
+      still_threshold:
+        name: 门11.静止阈值
+    gate_12:
+      move_threshold:
+        name: 门12移动阈值
+      still_threshold:
+        name: 门12.静止阈值
+    gate_13:
+      move_threshold:
+        name: 门13移动阈值
+      still_threshold:
+        name: 门13.静止阈值
+button:  # LD2412特定功能的按钮
+  - platform: ld2412
+    factory_reset:
+      name: 恢复出厂设置 # 恢复出厂设置
+    restart:
+      name: 重启设备 # 重启设备
+    query_params:
+      name: 查询参数. # 查询参数
+    start_dynamic_background_correction:
+      name: 启动动态背景校正       # 启动动态背景校正       
+select:
+  - platform: ld2412
+    out_pin_level:
+      name: 硬件输出引脚电平 # 硬件输出引脚电平
+    distance_resolution:
+      name: 距离分辨率 # 距离分辨率
+    light_function:
+      name: Light Function
+    baud_rate:
+      name: 波特率
+        
