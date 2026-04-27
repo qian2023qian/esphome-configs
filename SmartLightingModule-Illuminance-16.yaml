@@ -268,6 +268,15 @@ globals:
   - id: hold_long_done
     type: bool
     initial_value: 'false'
+  # 新增：互锁通道配置（0=禁用，1-16=对应灯光通道）
+  - id: interlock_a
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: interlock_b
+    type: int
+    restore_value: true
+    initial_value: '0'
 
 # 核心逻辑：解析 485 返回的状态包与亮度包
   
@@ -284,6 +293,43 @@ script:
     then:
       - lambda: |-
           uint8_t payload[] = {0xF5, (uint8_t)cmd, (uint8_t)data0, (uint8_t)data1, (uint8_t)(0xF5 + cmd + data0 + data1)};   
+          id(uart_bus).write_array(payload, 5);
+      - delay: 100ms
+
+  - id: interlocked_turn_on
+    mode: queued
+    max_runs: 32
+    parameters:
+      cmd: int
+      data0: int
+      data1: int
+      ch: int
+    then:
+      - lambda: |-
+          int a = id(interlock_a);
+          int b = id(interlock_b);
+          int partner = 0;
+          if (ch == a && b >= 1 && b <= 16 && a != b) partner = b;
+          if (ch == b && a >= 1 && a <= 16 && a != b) partner = a;
+          switch (partner) {
+            case 1: id(ch1).turn_off(); break;
+            case 2: id(ch2).turn_off(); break;
+            case 3: id(ch3).turn_off(); break;
+            case 4: id(ch4).turn_off(); break;
+            case 5: id(ch5).turn_off(); break;
+            case 6: id(ch6).turn_off(); break;
+            case 7: id(ch7).turn_off(); break;
+            case 8: id(ch8).turn_off(); break;
+            case 9: id(ch9).turn_off(); break;
+            case 10: id(ch10).turn_off(); break;
+            case 11: id(ch11).turn_off(); break;
+            case 12: id(ch12).turn_off(); break;
+            case 13: id(ch13).turn_off(); break;
+            case 14: id(ch14).turn_off(); break;
+            case 15: id(ch15).turn_off(); break;
+            case 16: id(ch16).turn_off(); break;
+          }
+          uint8_t payload[] = {0xF5, (uint8_t)cmd, (uint8_t)data0, (uint8_t)data1, (uint8_t)(0xF5 + cmd + data0 + data1)};
           id(uart_bus).write_array(payload, 5);
       - delay: 100ms
 
@@ -630,6 +676,30 @@ number:
     lambda: "return id(max_remote_channels);"
     set_action:
       - lambda: "id(max_remote_channels) = x;"
+
+  # 新增：互锁通道选择（A开则B关，B开则A关）
+  - platform: template
+    name: "65.互锁通道A (0=禁用)"
+    id: interlock_a_ui
+    entity_category: "config"
+    min_value: 0
+    max_value: 16
+    step: 1
+    mode: box
+    lambda: "return id(interlock_a);"
+    set_action:
+      - lambda: "id(interlock_a) = x;"
+  - platform: template
+    name: "66.互锁通道B (0=禁用)"
+    id: interlock_b_ui
+    entity_category: "config"
+    min_value: 0
+    max_value: 16
+    step: 1
+    mode: box
+    lambda: "return id(interlock_b);"
+    set_action:
+      - lambda: "id(interlock_b) = x;"
 
   # 光敏：每路下限/上限数值输入器
   - platform: template
@@ -1033,8 +1103,8 @@ remote_receiver:
   # rc_switch 默认能捕获市面绝大多数 24 位 EV1527 模块码
   # 滤波器设置，容差可根据实际效果调整
   tolerance: 50%            # 接收信号的时间容差
-  filter: 250us             # 过滤掉短于250微秒的脉冲（噪声）
-  idle: 3ms                 # 判断一帧数据结束的空闲时间
+  filter: 200us             # 过滤掉短于250微秒的脉冲（噪声）
+  idle: 2ms                 # 判断一帧数据结束的空闲时间
 
   on_rc_switch:
     then:
@@ -1207,112 +1277,112 @@ switch:
     id: ch1
     optimistic: true  # 启动时乐观地认为它是关闭的，直到收到状态包更新为止
     restore_mode: DISABLED # 上电不恢复状态，避免状态不一致导致误操作
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x80, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x80, data1: 0x00, ch: 1 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x80, data1: 0x00 } }
   - platform: template
     name: "灯光-02"
     id: ch2
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x40, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x40, data1: 0x00, ch: 2 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x40, data1: 0x00 } }
   - platform: template
     name: "灯光-03"
     id: ch3
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x20, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x20, data1: 0x00, ch: 3 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x20, data1: 0x00 } }
   - platform: template
     name: "灯光-04"
     id: ch4
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x10, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x10, data1: 0x00, ch: 4 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x10, data1: 0x00 } }
   - platform: template
     name: "灯光-05"
     id: ch5
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x08, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x08, data1: 0x00, ch: 5 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
   - platform: template
     name: "灯光-06"
     id: ch6
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x04, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x04, data1: 0x00, ch: 6 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
   - platform: template
     name: "灯光-07"
     id: ch7
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x02, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x02, data1: 0x00, ch: 7 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
   - platform: template
     name: "灯光-08"
     id: ch8
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x01, data1: 0x00 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x01, data1: 0x00, ch: 8 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
   - platform: template
     name: "灯光-09"
     id: ch9
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x80 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x80, ch: 9 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
   - platform: template
     name: "灯光-10"
     id: ch10
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x40 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x40, ch: 10 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
   - platform: template
     name: "灯光-11"
     id: ch11
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x20 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x20, ch: 11 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
   - platform: template
     name: "灯光-12"
     id: ch12
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x10, ch: 12 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
   - platform: template
     name: "灯光-13"
     id: ch13
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x08, ch: 13 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
   - platform: template
     name: "灯光-14"
     id: ch14
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x04, ch: 14 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
   - platform: template
     name: "灯光-15"
     id: ch15
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x02, ch: 15 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
   - platform: template
     name: "灯光-16"
     id: ch16
     optimistic: true
     restore_mode: DISABLED
-    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
+    turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x01, ch: 16 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
   - platform: template
     name: "55.自动更新亮度"
