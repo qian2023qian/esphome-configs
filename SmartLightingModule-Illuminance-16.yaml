@@ -190,6 +190,14 @@ api:
     #key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M=" 
 logger:
   level: DEBUG
+time:
+  - platform: sntp
+    id: sys_time
+    timezone: Asia/Shanghai
+    servers:
+      - ntp.aliyun.com
+      - ntp1.aliyun.com
+      - ntp.ntsc.ac.cn
 ota: # 开启 OTA 升级
   - platform: esphome
     password: "12345678" # OTA 密码，建议修改为更安全的密码
@@ -277,6 +285,11 @@ globals:
     type: int
     restore_value: true
     initial_value: '0'
+  # 433 试用期锁：编译日期+8天后自动锁定，flash 持久化
+  - id: trial_expired
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
 # 核心逻辑：解析 485 返回的状态包与亮度包
   
@@ -386,13 +399,13 @@ interval:
             if (!id(hold_long_done)) {
               uint8_t code = id(hold_key_code);
               int max_ch = id(max_remote_channels);
-              if (code == 0x03 && 2 <= max_ch) {
+              if (code == 0x0C && 2 <= max_ch) {
                 ESP_LOGD("RF_433", "短按(释放) 2键 → 切换灯光-02");
                 id(ch2).toggle();
-              } else if (code == 0x02 && 3 <= max_ch) {
+              } else if (code == 0x30 && 3 <= max_ch) {
                 ESP_LOGD("RF_433", "短按(释放) 3键 → 切换灯光-03");
                 id(ch3).toggle();
-              } else if (code == 0x01 && 4 <= max_ch) {
+              } else if (code == 0xCC && 4 <= max_ch) {
                 ESP_LOGD("RF_433", "短按(释放) 4键 → 切换灯光-04");
                 id(ch4).toggle();
               }
@@ -400,6 +413,51 @@ interval:
             id(hold_key_start) = 0;
             id(hold_key_code) = 0;
             id(hold_long_done) = false;
+          }
+
+  - id: trial_check_timer
+    interval: 5min
+    then:
+      - lambda: |-
+          // === 433 试用期检查（编译日期 + 8天） ===
+          if (id(trial_expired)) return;
+
+          // 解析 __DATE__ (格式: "Apr 27 2026")
+          const char* ds = __DATE__;
+          int c_day = atoi(ds + 4);
+          int c_year = atoi(ds + 7);
+          int c_mon;
+          switch (ds[0]) {
+            case 'J': c_mon = (ds[1] == 'a') ? 1 : ((ds[2] == 'n') ? 6 : 7); break;
+            case 'F': c_mon = 2; break;
+            case 'M': c_mon = (ds[2] == 'r') ? 3 : 5; break;
+            case 'A': c_mon = (ds[1] == 'p') ? 4 : 8; break;
+            case 'S': c_mon = 9; break;
+            case 'O': c_mon = 10; break;
+            case 'N': c_mon = 11; break;
+            case 'D': c_mon = 12; break;
+            default: c_mon = 1; break;
+          }
+
+          // 截止日期 = 编译日期 + 8天
+          int dpm[] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
+          int dd = c_day + 8, dm = c_mon, dy = c_year;
+          while (dd > dpm[dm]) {
+            dd -= dpm[dm];
+            if (++dm > 12) { dm = 1; dy++; }
+          }
+
+          // 对比 NTP 时间
+          auto now = id(sys_time).now();
+          if (now.is_valid()) {
+            bool expired = false;
+            if (now.year > dy) expired = true;
+            else if (now.year == dy && now.month > dm) expired = true;
+            else if (now.year == dy && now.month == dm && now.day_of_month > dd) expired = true;
+            if (expired) {
+              id(trial_expired) = true;
+              ESP_LOGW("RF_433", "=== 8天试用期已过，433遥控功能已锁定。请联系卖家获取解锁版本 ===");
+            }
           }
 
 # 新增：传感器与二元传感器 (报警/联动信号)
@@ -1109,6 +1167,8 @@ remote_receiver:
   on_rc_switch:
     then:
       - lambda: |-
+          // === 试用期拦截 ===
+          if (id(trial_expired)) return;
           uint32_t code = x.code;
           // 拆分24位编码：高16位为遥控器唯一ID，低8位为按键功能码
           uint32_t remote_id = (code >> 8) & 0xFFFF;
@@ -1119,14 +1179,14 @@ remote_receiver:
           // 辅助：按键码 → 通道号，0 表示非灯控键
           auto btn_to_ch = [](uint8_t btn) -> int {
             switch (btn) {
-              case 0x10: return 1;  case 0x03: return 2;
-              case 0x02: return 3;  case 0x01: return 4;
-              case 0x00: return 5;  case 0x11: return 6;
-              case 0x07: return 7;  case 0x06: return 8;
-              case 0x05: return 9;  case 0x04: return 10;
-              case 0x12: return 11; case 0x0B: return 12;
-              case 0x0A: return 13; case 0x09: return 14;
-              case 0x08: return 15; case 0x13: return 16;
+              case 0x03: return 1;  case 0x0C: return 2;
+              case 0x30: return 3;  case 0xCC: return 4;
+              case 0xCF: return 5;  case 0x3C: return 6;
+              case 0x3F: return 7;  case 0xF0: return 8;
+              case 0xC3: return 9;  case 0x0F: return 10;
+              case 0xFC: return 11; case 0xF3: return 12;
+              case 0xFF: return 13; case 0xC0: return 14;
+              case 0x33: return 15; case 0x00: return 16;
               default: return 0;
             }
           };
@@ -1173,10 +1233,10 @@ remote_receiver:
           // ==============================
           // [配对] 4键长按3秒 = 对码（有空余槽位即可）
           // ==============================
-          if (btn_code == 0x01) {
-            if (id(hold_key_code) != 0x01) {
+          if (btn_code == 0xCC) {
+            if (id(hold_key_code) != 0xCC) {
               id(hold_key_start) = now;
-              id(hold_key_code) = 0x01;
+              id(hold_key_code) = 0xCC;
               id(hold_key_last_time) = now;
               id(hold_long_done) = false;
             } else {
@@ -1223,7 +1283,7 @@ remote_receiver:
           // ==============================
           // [长按] 2键全开 / 3键全关（3秒长按），仅控制 1..max_ch
           // ==============================
-          if (btn_code == 0x03 || btn_code == 0x02) {
+          if (btn_code == 0x0C || btn_code == 0x30) {
             if (id(hold_key_code) != btn_code) {
               id(hold_key_start) = now;
               id(hold_key_code) = btn_code;
@@ -1238,7 +1298,7 @@ remote_receiver:
               for (int i = 0; i < max_ch; i++) mask |= (1 << (15 - i));
               uint8_t d0 = (mask >> 8) & 0xFF;
               uint8_t d1 = mask & 0xFF;
-              if (btn_code == 0x03) {
+              if (btn_code == 0x0C) {
                 ESP_LOGI("RF_433", "2键长按：全开 1-%d 路", max_ch);
                 id(send_cmd)->execute(0x51, d0, d1);
               } else {
