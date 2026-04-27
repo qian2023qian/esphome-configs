@@ -1,7 +1,7 @@
 esphome:
-  name: s485-lt-me-le-12
+  name: s485-lt-me-le-16
   name_add_mac_suffix: true
-  friendly_name: "智能照明12"
+  friendly_name: "智能照明16"
   # 这是一个基于 ESP32-C3 的智能照明控制器，支持 16 路继电器控制和环境亮度监测。通过 ttl与主控设备通信，接收控制命令并上报状态，核心逻辑：解析 485 返回的状态包与亮度包，新增环境亮度传感器和光敏触发设置的支持
   on_boot:
     priority: -100  # 在所有组件初始化完成后执行
@@ -64,8 +64,8 @@ esphome:
               update_sw(id(ch7), xh & 0x02); update_sw(id(ch8), xh & 0x01);
               update_sw(id(ch9), xl & 0x80); update_sw(id(ch10), xl & 0x40);
               update_sw(id(ch11), xl & 0x20); update_sw(id(ch12), xl & 0x10);
-             // update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
-              //update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
+              update_sw(id(ch13), xl & 0x08); update_sw(id(ch14), xl & 0x04);
+              update_sw(id(ch15), xl & 0x02); update_sw(id(ch16), xl & 0x01);
               
               id(rx_buf).erase(id(rx_buf).begin(), id(rx_buf).begin() + 5);
             } else {
@@ -132,25 +132,25 @@ esphome:
                 for (int i = 0; i < 32; i++) id(photo_cfg)[i] = photo_data[i];
                 id(photo_cfg_valid) = true;
               }
-              esphome::switch_::Switch *en_sw[12] = {  // 16 路使能开关
+              esphome::switch_::Switch *en_sw[16] = {  // 16 路使能开关
                 id(photo_en_01), id(photo_en_02), id(photo_en_03), id(photo_en_04),
                 id(photo_en_05), id(photo_en_06), id(photo_en_07), id(photo_en_08),
                 id(photo_en_09), id(photo_en_10), id(photo_en_11), id(photo_en_12),
-                //id(photo_en_13), id(photo_en_14), id(photo_en_15), id(photo_en_16)
+                id(photo_en_13), id(photo_en_14), id(photo_en_15), id(photo_en_16)
               };
-              esphome::number::Number *low_num[12] = {  // 16 路下限数值
+              esphome::number::Number *low_num[16] = {  // 16 路下限数值
                 id(photo_low_01), id(photo_low_02), id(photo_low_03), id(photo_low_04),
                 id(photo_low_05), id(photo_low_06), id(photo_low_07), id(photo_low_08),
                 id(photo_low_09), id(photo_low_10), id(photo_low_11), id(photo_low_12),
                 //id(photo_low_13), id(photo_low_14), id(photo_low_15), id(photo_low_16)
               };
-              esphome::number::Number *high_num[12] = {  // 16 路上限数值
+              esphome::number::Number *high_num[16] = {  // 16 路上限数值
                 id(photo_high_01), id(photo_high_02), id(photo_high_03), id(photo_high_04),
                 id(photo_high_05), id(photo_high_06), id(photo_high_07), id(photo_high_08),
                 id(photo_high_09), id(photo_high_10), id(photo_high_11), id(photo_high_12),
-               // id(photo_high_13), id(photo_high_14), id(photo_high_15), id(photo_high_16)
+                id(photo_high_13), id(photo_high_14), id(photo_high_15), id(photo_high_16)
               };
-              for (int ch = 0; ch < 12; ch++) {   //更改路数时记得修改这里的数组大小
+              for (int ch = 0; ch < 16; ch++) {   //更改路数时记得修改这里的数组大小
                 uint8_t lowb = photo_data[ch * 2 + 0];
                 uint8_t highb = photo_data[ch * 2 + 1];
                 bool en = (lowb & 0x80) != 0;
@@ -176,10 +176,10 @@ esp32:
 
 # WiFi 配置：连接成功输出高电平
 wifi:
-  # ssid: "你的WiFi名称"
-  # password: "你的WiFi密码"
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
   ap:
-    ssid: "S485-LT-ME-12" # AP 模式下的 WiFi 名称
+    ssid: "S485-LT-ME-16" # AP 模式下的 WiFi 名称
     password: "12345678" # AP 模式下的 WiFi 密码
   on_connect:
     - output.turn_on: wifi_led_pin  # 连接成功输出高电平
@@ -233,6 +233,42 @@ globals:
   - id: photo_cfg_valid
     type: bool
     initial_value: 'false'
+  # 新增：保存配对的多组遥控器ID (前16位地址码)，断电不丢失，最多支持4个
+  - id: paired_remote_id_1
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: paired_remote_id_2
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: paired_remote_id_3
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: paired_remote_id_4
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  # 新增：遥控器最大可控制路数（1-16），断电不丢失
+  - id: max_remote_channels
+    type: int
+    restore_value: true
+    initial_value: '16'
+  # 新增：长按判定相关变量
+  - id: hold_key_start
+    type: uint32_t
+    initial_value: '0'
+  - id: hold_key_code
+    type: uint8_t
+    initial_value: '0'
+  - id: hold_key_last_time
+    type: uint32_t
+    initial_value: '0'
+  - id: hold_long_done
+    type: bool
+    initial_value: 'false'
+
 # 核心逻辑：解析 485 返回的状态包与亮度包
   
 
@@ -251,13 +287,13 @@ script:
           id(uart_bus).write_array(payload, 5);
       - delay: 100ms
 
-  - id: query_state
+  - id: query_state  # 查询当前状态（包含报警/信号+继电器状态）
     mode: queued
     then:
       - lambda: 'uint8_t p[] = {0xF5, 0x10, 0x00, 0x00, 0x05}; id(uart_bus).write_array(p, 5);'
       - delay: 100ms
 
-  - id: query_brightness
+  - id: query_brightness   # 查询当前环境亮度
     mode: queued
     then:
       # 发送亮度查询: F5 EE 00 01 00 1B FF
@@ -293,6 +329,31 @@ interval:
           } else {
             // 开关关闭时，计数器保持清零
             id(bright_poll_counter) = 0;
+          }
+  - id: key_release_check
+    interval: 200ms
+    then:
+      - lambda: |-
+          if (id(hold_key_code) == 0) return;
+          uint32_t now = millis();
+          if (now - id(hold_key_last_time) > 400) {
+            if (!id(hold_long_done)) {
+              uint8_t code = id(hold_key_code);
+              int max_ch = id(max_remote_channels);
+              if (code == 0x03 && 2 <= max_ch) {
+                ESP_LOGD("RF_433", "短按(释放) 2键 → 切换灯光-02");
+                id(ch2).toggle();
+              } else if (code == 0x02 && 3 <= max_ch) {
+                ESP_LOGD("RF_433", "短按(释放) 3键 → 切换灯光-03");
+                id(ch3).toggle();
+              } else if (code == 0x01 && 4 <= max_ch) {
+                ESP_LOGD("RF_433", "短按(释放) 4键 → 切换灯光-04");
+                id(ch4).toggle();
+              }
+            }
+            id(hold_key_start) = 0;
+            id(hold_key_code) = 0;
+            id(hold_long_done) = false;
           }
 
 # 新增：传感器与二元传感器 (报警/联动信号)
@@ -381,11 +442,22 @@ button:
   - platform: template
     name: "全开所有灯on"
     on_press:
-      - script.execute: { id: send_cmd, cmd: 0x51, data0: 0xFF, data1: 0xFF }
+      - script.execute: { id: send_cmd, cmd: 0x51, data0: 0xFF, data1: 0xFF }  # 0x51 是全开命令，0xFF 代表所有通道
   - platform: template
     name: "全关所有灯off"
     on_press:
       - script.execute: { id: send_cmd, cmd: 0x52, data0: 0xFF, data1: 0xFF }
+  - platform: template
+    name: "63.清除所有遥控器绑定"
+    icon: "mdi:remote-off"
+    entity_category: "config"
+    on_press:
+      - lambda: |-
+          id(paired_remote_id_1) = 0;
+          id(paired_remote_id_2) = 0;
+          id(paired_remote_id_3) = 0;
+          id(paired_remote_id_4) = 0;
+          ESP_LOGI("RF_433", "所有遥控器绑定已清除");
   - platform: template
     name: "51.写入模块参数设置"
     icon: "mdi:content-save"
@@ -451,26 +523,26 @@ button:
             if (v > hi) v = hi;
             return (uint8_t)v;
           };
-          esphome::switch_::Switch *en_sw[12] = {   //更改路数时记得修改这里的数组大小
+          esphome::switch_::Switch *en_sw[16] = {   //更改路数时记得修改这里的数组大小
             id(photo_en_01), id(photo_en_02), id(photo_en_03), id(photo_en_04),
             id(photo_en_05), id(photo_en_06), id(photo_en_07), id(photo_en_08),
             id(photo_en_09), id(photo_en_10), id(photo_en_11), id(photo_en_12),
-            //id(photo_en_13), id(photo_en_14), id(photo_en_15), id(photo_en_16)
+            id(photo_en_13), id(photo_en_14), id(photo_en_15), id(photo_en_16)
           };
-          esphome::number::Number *low_num[12] = {
+          esphome::number::Number *low_num[16] = {
             id(photo_low_01), id(photo_low_02), id(photo_low_03), id(photo_low_04),
             id(photo_low_05), id(photo_low_06), id(photo_low_07), id(photo_low_08),
             id(photo_low_09), id(photo_low_10), id(photo_low_11), id(photo_low_12),
-            //id(photo_low_13), id(photo_low_14), id(photo_low_15), id(photo_low_16)
+            id(photo_low_13), id(photo_low_14), id(photo_low_15), id(photo_low_16)
           };
-          esphome::number::Number *high_num[12] = {
+          esphome::number::Number *high_num[16] = {
             id(photo_high_01), id(photo_high_02), id(photo_high_03), id(photo_high_04),
             id(photo_high_05), id(photo_high_06), id(photo_high_07), id(photo_high_08),
             id(photo_high_09), id(photo_high_10), id(photo_high_11), id(photo_high_12),
-            //id(photo_high_13), id(photo_high_14), id(photo_high_15), id(photo_high_16)
+            id(photo_high_13), id(photo_high_14), id(photo_high_15), id(photo_high_16)
           };
 
-          for (int ch = 0; ch < 12; ch++) {   //更改路数时记得修改这里的数组大小
+          for (int ch = 0; ch < 16; ch++) {   //更改路数时记得修改这里的数组大小
             int low = (int)low_num[ch]->state;
             int high = (int)high_num[ch]->state;
             uint8_t lowb = clamp_u8(low, 0, 99);
@@ -500,6 +572,64 @@ number:
     optimistic: true
     restore_value: true  # 断电记忆你设置的间隔时间
     initial_value: 60    # 默认 60 秒
+  # 多遥控器绑定管理（4个槽位，值为0表示空）
+  - platform: template
+    name: "59.遥控器绑定-槽位1 (填0清空)"
+    id: paired_remote_id_ui_1
+    entity_category: "config"
+    min_value: 0
+    max_value: 65535 # 16位地址码最大值
+    step: 1
+    mode: box
+    lambda: "return id(paired_remote_id_1);"
+    set_action:
+      - lambda: "id(paired_remote_id_1) = x;"
+  - platform: template
+    name: "60.遥控器绑定-槽位2 (填0清空)"
+    id: paired_remote_id_ui_2
+    entity_category: "config"
+    min_value: 0
+    max_value: 65535
+    step: 1
+    mode: box
+    lambda: "return id(paired_remote_id_2);"
+    set_action:
+      - lambda: "id(paired_remote_id_2) = x;"
+  - platform: template
+    name: "61.遥控器绑定-槽位3 (填0清空)"
+    id: paired_remote_id_ui_3
+    entity_category: "config"
+    min_value: 0
+    max_value: 65535
+    step: 1
+    mode: box
+    lambda: "return id(paired_remote_id_3);"
+    set_action:
+      - lambda: "id(paired_remote_id_3) = x;"
+  - platform: template
+    name: "62.遥控器绑定-槽位4 (填0清空)"
+    id: paired_remote_id_ui_4
+    entity_category: "config"
+    min_value: 0
+    max_value: 65535
+    step: 1
+    mode: box
+    lambda: "return id(paired_remote_id_4);"
+    set_action:
+      - lambda: "id(paired_remote_id_4) = x;"
+
+  # 新增：遥控器最大控制路数
+  - platform: template
+    name: "64.遥控器最大控制路数"
+    id: max_remote_channels_ui
+    entity_category: "config"
+    min_value: 1
+    max_value: 16
+    step: 1
+    mode: box
+    lambda: "return id(max_remote_channels);"
+    set_action:
+      - lambda: "id(max_remote_channels) = x;"
 
   # 光敏：每路下限/上限数值输入器
   - platform: template
@@ -754,91 +884,91 @@ number:
     mode: box
     optimistic: true
     restore_value: true
-#  - platform: template
-#    name: "39.光敏-13-下限"
-#    id: photo_low_13
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#    initial_value: 99
-#  - platform: template
-#   name: "40.光敏-13-上限."
-#    id: photo_high_13
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#  - platform: template
-#    name: "42.光敏-14-下限"
-##    id: photo_low_14
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#    initial_value: 99
-#  - platform: template
-#    name: "43.光敏-14-上限."
-#    id: photo_high_14
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#  - platform: template
-#    name: "45.光敏-15-下限"
-##    id: photo_low_15
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#    initial_value: 99
-#  - platform: template
-#    name: "46.光敏-15-上限."
-#    id: photo_high_15
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#  - platform: template
-#    name: "49.光敏-16-下限"
-##    id: photo_low_16
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#    initial_value: 99
-#  - platform: template
-#    name: "50.光敏-16-上限."
-#    id: photo_high_16
-#    entity_category: "config"
-#    min_value: 0
-#    max_value: 99
-#    step: 1
-#    mode: box
-#    optimistic: true
-#    restore_value: true
-#
+  - platform: template
+    name: "39.光敏-13-下限"
+    id: photo_low_13
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 99
+  - platform: template
+    name: "40.光敏-13-上限."
+    id: photo_high_13
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "42.光敏-14-下限"
+    id: photo_low_14
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 99
+  - platform: template
+    name: "43.光敏-14-上限."
+    id: photo_high_14
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "45.光敏-15-下限"
+    id: photo_low_15
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 99
+  - platform: template
+    name: "46.光敏-15-上限."
+    id: photo_high_15
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "49.光敏-16-下限"
+    id: photo_low_16
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 99
+  - platform: template
+    name: "50.光敏-16-上限."
+    id: photo_high_16
+    entity_category: "config"
+    min_value: 0
+    max_value: 99
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+
 select:
   - platform: template
     name: "52.继电器启动间隔选择"
@@ -893,6 +1023,181 @@ select:
       - "05: 开关."
       - "06: I/O 信号"
       - "07: 开关."
+# ==========================================
+# 433MHz 遥控器接收与解码模块
+# ==========================================
+remote_receiver:  
+  pin: GPIO6
+  dump: 
+   - rc_switch         
+  # rc_switch 默认能捕获市面绝大多数 24 位 EV1527 模块码
+  # 滤波器设置，容差可根据实际效果调整
+  tolerance: 50%            # 接收信号的时间容差
+  filter: 250us             # 过滤掉短于250微秒的脉冲（噪声）
+  idle: 3ms                 # 判断一帧数据结束的空闲时间
+
+  on_rc_switch:
+    then:
+      - lambda: |-
+          uint32_t code = x.code;
+          // 拆分24位编码：高16位为遥控器唯一ID，低8位为按键功能码
+          uint32_t remote_id = (code >> 8) & 0xFFFF;
+          uint8_t btn_code = code & 0xFF;
+          uint32_t now = millis();
+          int max_ch = id(max_remote_channels);
+
+          // 辅助：按键码 → 通道号，0 表示非灯控键
+          auto btn_to_ch = [](uint8_t btn) -> int {
+            switch (btn) {
+              case 0x10: return 1;  case 0x03: return 2;
+              case 0x02: return 3;  case 0x01: return 4;
+              case 0x00: return 5;  case 0x11: return 6;
+              case 0x07: return 7;  case 0x06: return 8;
+              case 0x05: return 9;  case 0x04: return 10;
+              case 0x12: return 11; case 0x0B: return 12;
+              case 0x0A: return 13; case 0x09: return 14;
+              case 0x08: return 15; case 0x13: return 16;
+              default: return 0;
+            }
+          };
+
+          // 辅助：切换指定通道（校验 max_ch）
+          auto toggle_if = [max_ch](int ch) {
+            if (ch < 1 || ch > max_ch) return;
+            switch (ch) {
+              case 1: id(ch1).toggle(); break;
+              case 2: id(ch2).toggle(); break;
+              case 3: id(ch3).toggle(); break;
+              case 4: id(ch4).toggle(); break;
+              case 5: id(ch5).toggle(); break;
+              case 6: id(ch6).toggle(); break;
+              case 7: id(ch7).toggle(); break;
+              case 8: id(ch8).toggle(); break;
+              case 9: id(ch9).toggle(); break;
+              case 10: id(ch10).toggle(); break;
+              case 11: id(ch11).toggle(); break;
+              case 12: id(ch12).toggle(); break;
+              case 13: id(ch13).toggle(); break;
+              case 14: id(ch14).toggle(); break;
+              case 15: id(ch15).toggle(); break;
+              case 16: id(ch16).toggle(); break;
+            }
+          };
+
+          // ==============================
+          // 如果之前跟踪的按键被新按键打断，先触发其短按
+          // ==============================
+          if (id(hold_key_code) != 0 && id(hold_key_code) != btn_code) {
+            if (!id(hold_long_done)) {
+              int prev_ch = btn_to_ch(id(hold_key_code));
+              if (prev_ch > 0 && prev_ch <= max_ch) {
+                ESP_LOGD("RF_433", "短按(释放) 0x%02X → 灯光-%02d", id(hold_key_code), prev_ch);
+                toggle_if(prev_ch);
+              }
+            }
+            id(hold_key_start) = 0;
+            id(hold_key_code) = 0;
+            id(hold_long_done) = false;
+          }
+
+          // ==============================
+          // [配对] 4键长按3秒 = 对码（有空余槽位即可）
+          // ==============================
+          if (btn_code == 0x01) {
+            if (id(hold_key_code) != 0x01) {
+              id(hold_key_start) = now;
+              id(hold_key_code) = 0x01;
+              id(hold_key_last_time) = now;
+              id(hold_long_done) = false;
+            } else {
+              id(hold_key_last_time) = now;
+            }
+            if (!id(hold_long_done) && now - id(hold_key_start) >= 3000) {
+              id(hold_long_done) = true;
+              if (id(paired_remote_id_1) == remote_id || id(paired_remote_id_2) == remote_id ||
+                  id(paired_remote_id_3) == remote_id || id(paired_remote_id_4) == remote_id) {
+                ESP_LOGI("RF_433", "遥控器 ID: %04X 已绑定，无需重复对码", remote_id);
+              } else if (id(paired_remote_id_1) == 0) {
+                id(paired_remote_id_1) = remote_id;
+                ESP_LOGI("RF_433", "对码成功！遥控器 ID: %04X → 槽位1", remote_id);
+              } else if (id(paired_remote_id_2) == 0) {
+                id(paired_remote_id_2) = remote_id;
+                ESP_LOGI("RF_433", "对码成功！遥控器 ID: %04X → 槽位2", remote_id);
+              } else if (id(paired_remote_id_3) == 0) {
+                id(paired_remote_id_3) = remote_id;
+                ESP_LOGI("RF_433", "对码成功！遥控器 ID: %04X → 槽位3", remote_id);
+              } else if (id(paired_remote_id_4) == 0) {
+                id(paired_remote_id_4) = remote_id;
+                ESP_LOGI("RF_433", "对码成功！遥控器 ID: %04X → 槽位4", remote_id);
+              } else {
+                ESP_LOGW("RF_433", "对码失败！所有槽位已满");
+              }
+            }
+            return;
+          }
+
+          // ==============================
+          // [安全] 验证遥控器权限（检查所有4个槽位）
+          // ==============================
+          {
+            bool has_any = (id(paired_remote_id_1) != 0 || id(paired_remote_id_2) != 0 ||
+                            id(paired_remote_id_3) != 0 || id(paired_remote_id_4) != 0);
+            bool ok = (id(paired_remote_id_1) == remote_id || id(paired_remote_id_2) == remote_id ||
+                       id(paired_remote_id_3) == remote_id || id(paired_remote_id_4) == remote_id);
+            if (has_any && !ok) {
+              ESP_LOGW("RF_433", "收到未授权的遥控器指令，已拦截！遥控器ID: %04X", remote_id);
+              return;
+            }
+          }
+
+          // ==============================
+          // [长按] 2键全开 / 3键全关（3秒长按），仅控制 1..max_ch
+          // ==============================
+          if (btn_code == 0x03 || btn_code == 0x02) {
+            if (id(hold_key_code) != btn_code) {
+              id(hold_key_start) = now;
+              id(hold_key_code) = btn_code;
+              id(hold_key_last_time) = now;
+              id(hold_long_done) = false;
+            } else {
+              id(hold_key_last_time) = now;
+            }
+            if (!id(hold_long_done) && now - id(hold_key_start) >= 3000) {
+              id(hold_long_done) = true;
+              uint16_t mask = 0;
+              for (int i = 0; i < max_ch; i++) mask |= (1 << (15 - i));
+              uint8_t d0 = (mask >> 8) & 0xFF;
+              uint8_t d1 = mask & 0xFF;
+              if (btn_code == 0x03) {
+                ESP_LOGI("RF_433", "2键长按：全开 1-%d 路", max_ch);
+                id(send_cmd)->execute(0x51, d0, d1);
+              } else {
+                ESP_LOGI("RF_433", "3键长按：全关 1-%d 路", max_ch);
+                id(send_cmd)->execute(0x52, d0, d1);
+              }
+            }
+            return;
+          }
+
+          // ==============================
+          // [短按] 防抖 + 切换灯光（仅控制 1..max_ch）
+          // ==============================
+          {
+            static uint32_t last_cmd_time = 0;
+            static uint8_t last_btn = 0;
+            if (now - last_cmd_time < 500 && last_btn == btn_code) {
+              last_cmd_time = now;
+              return;
+            }
+            last_cmd_time = now;
+            last_btn = btn_code;
+          }
+
+          int ch = btn_to_ch(btn_code);
+          if (ch > 0 && ch <= max_ch) {
+            ESP_LOGD("RF_433", "短按 0x%02X → 灯光-%02d", btn_code, ch);
+            toggle_if(ch);
+          }
 
 # 16路继电器配置 (data0对应1-8路，data1对应9-16路)
 # 关键：optimistic: false 确保上电时不会主动发送命令，完全依赖模块返回的真实状态
@@ -981,34 +1286,34 @@ switch:
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x10 } }
     turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
-##  - platform: template
-##    name: "灯光-13"
-#    id: ch13
-#    optimistic: true
-#    restore_mode: DISABLED
-#    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
-#    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
-#  - platform: template
-#    name: "灯光-14"
-#    id: ch14
-#    optimistic: true
-#    restore_mode: DISABLED
-#    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
-#    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
-#  - platform: template
-#    name: "灯光-15"
-#    id: ch15
-#    optimistic: true
-#    restore_mode: DISABLED
-#    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
-#    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
-#  - platform: template
-#    name: "灯光-16"
-#    id: ch16
-#    optimistic: true
-#    restore_mode: DISABLED
-#    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
-#    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
+  - platform: template
+    name: "灯光-13"
+    id: ch13
+    optimistic: true
+    restore_mode: DISABLED
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x08 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
+  - platform: template
+    name: "灯光-14"
+    id: ch14
+    optimistic: true
+    restore_mode: DISABLED
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x04 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
+  - platform: template
+    name: "灯光-15"
+    id: ch15
+    optimistic: true
+    restore_mode: DISABLED
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x02 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
+  - platform: template
+    name: "灯光-16"
+    id: ch16
+    optimistic: true
+    restore_mode: DISABLED
+    turn_on_action:  { script.execute: { id: send_cmd, cmd: 0x51, data0: 0x00, data1: 0x01 } }
+    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
   - platform: template
     name: "55.自动更新亮度"
     id: auto_brightness_sw
@@ -1089,28 +1394,28 @@ switch:
     optimistic: true
     entity_category: "config" # 配置类，放在设置里
     restore_mode: RESTORE_DEFAULT_OFF
-#  - platform: template
-##    name: "39.光敏-13-启用"
-#    id: photo_en_13
-#    optimistic: true
-#    entity_category: "config" # 配置类，放在设置里
-#    restore_mode: RESTORE_DEFAULT_OFF
-#  - platform: template
-#    name: "42.光敏-14-启用"
-#    id: photo_en_14
-#    optimistic: true
-#    entity_category: "config" # 配置类，放在设置里
-#    restore_mode: RESTORE_DEFAULT_OFF
-#  - platform: template
-#    name: "45.光敏-15-启用"
-#    id: photo_en_15
-#    optimistic: true
-#    entity_category: "config" # 配置类，放在设置里
-#    restore_mode: RESTORE_DEFAULT_OFF
-#  - platform: template
-#    name: "48.光敏-16-启用"
-#    id: photo_en_16
-#    optimistic: true
-#    entity_category: "config" # 配置类，放在设置里
-#    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: template
+    name: "39.光敏-13-启用"
+    id: photo_en_13
+    optimistic: true
+    entity_category: "config" # 配置类，放在设置里
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: template
+    name: "42.光敏-14-启用"
+    id: photo_en_14
+    optimistic: true
+    entity_category: "config" # 配置类，放在设置里
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: template
+    name: "45.光敏-15-启用"
+    id: photo_en_15
+    optimistic: true
+    entity_category: "config" # 配置类，放在设置里
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: template
+    name: "48.光敏-16-启用"
+    id: photo_en_16
+    optimistic: true
+    entity_category: "config" # 配置类，放在设置里
+    restore_mode: RESTORE_DEFAULT_OFF
 

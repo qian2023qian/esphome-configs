@@ -1,0 +1,83 @@
+esphome:
+  name: 8266-433
+  friendly_name: 8266-433
+#该配置用于ESP8266接收433MHz遥控器信号，并通过Home Assistant API控制一个开关实体，使用蜂鸟无线接收模块微-R6连接到GPIO14引脚。配置了两个按键的代码和对应的开关行为，支持长按功能。
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "zJAoPvODacTHfYu49Io0D5X7tMQ014Q13z/hZevtiRw="
+ota:
+  - platform: esphome
+    password: "2d1d3381b5925cd8c1d816261b7765c7"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "8266-433 Fallback Hotspot"
+    password: "BtysoSPdVlxV"
+
+captive_portal:
+# 1. 配置remote_receiver作为接收中枢
+remote_receiver:
+  pin: GPIO14              # 你连接的接收模块DAT引脚
+  dump:                    # 可选：配置要解析的编码格式
+    - rc_switch            # 解析常见的EV1527/PT2262等协议的RF代码
+  # 滤波器设置，容差可根据实际效果调整
+  tolerance: 50%            # 接收信号的时间容差
+  filter: 250us             # 过滤掉短于250微秒的脉冲（噪声）
+  idle: 3ms                 # 判断一帧数据结束的空闲时间
+
+# 2. 创建二进制传感器来检测遥控器按键按下
+binary_sensor:
+  # 为遥控器上的每个按键创建一个传感器，替换其中的'code'为你记录的真实代码
+  - platform: remote_receiver
+    name: "433MHz Button A"
+    rc_switch_raw:
+      code: '011011010001111000010000'  # 你记录的按键A的代码
+      protocol: 1
+      # 为特定按键设置容差以提高灵敏度
+      # tolerance: 30%
+    filters:
+      - delayed_off: 500ms # 按下后，状态保持500ms
+    on_press:
+      then:
+        - switch.toggle: my_switch # 按下时切换开关状态
+    on_release:
+      then:
+        - switch.turn_off: my_switch # 松开时关闭开关
+  - platform: remote_receiver
+    name: "433MHz Button B"
+    rc_switch_raw:
+      code: '011011010001111000000011'  # 你记录的按键B的代码
+      protocol: 1
+    filters:
+      - delayed_off: 200ms
+    on_press:
+      then:
+        - switch.turn_on: my_switch # 按下时，打开开关
+    on_release:
+      then:
+        - switch.turn_off: my_switch # 松开时，关闭开关
+
+# 3. (核心) 定义一个GPIO开关，或者通过Home Assistant控制
+switch:
+  # 这是一个在ESPHome中定义的虚拟开关，你可以直接用它对应Home Assistant中的一个实体
+  - platform: template
+    name: "Remote Controlled Switch"
+    id: my_switch
+    optimistic: true # 开关状态乐观，立即响应
+
+  # 如果你需要控制ESP32的物理GPIO引脚，可以这样定义：
+  # - platform: gpio
+  #   name: "GPIO Output"
+  #   pin: GPIO2
+  #   id: relay_1    

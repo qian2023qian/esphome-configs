@@ -1,5 +1,7 @@
 esphome:
-  name: s485-lt-me-le-4
+  name: s485-lt-me-le-16
+  friendly_name: S485-LT-ME-16
+#该配置用于ESP32-C3接收485总线数据，并通过Home Assistant API控制16路开关实体，使用MAX485模块连接到GPIO20(RX)和GPIO21(TX)引脚。配置了485总线状态包和亮度包的解析逻辑，支持定时自动查询亮度和手动查询功能，同时处理消防联动和I/O信号的二元传感器状态更新。  
   on_boot:
     priority: -100  # 在所有组件初始化完成后执行
     then:
@@ -87,7 +89,7 @@ wifi:
   # ssid: "你的WiFi名称"
   # password: "你的WiFi密码"
   ap:
-    ssid: "S485-LT-ME-4" # AP 模式下的 WiFi 名称
+    ssid: "S485-LT-ME-16" # AP 模式下的 WiFi 名称
     password: "12345678" # AP 模式下的 WiFi 密码
   on_connect:
     - output.turn_on: wifi_led_pin
