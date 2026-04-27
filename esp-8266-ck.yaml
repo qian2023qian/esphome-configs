@@ -184,28 +184,36 @@ sensor:
     unit_of_measurement: "%"
     update_interval: 60s
     filters:
-      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);       
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
 
+# --- 全局变量 ---
+globals:
+  - id: last_card_id
+    type: std::string
+    initial_value: ""
 
-#wiegand:
-  #- platform: wiegand  # ESPHome 原生支持
-    #id: my_wiegand
-    #d0:
-     # number: GPIO12     # 换成你实际接的引脚
-     # mode: INPUT
-    #d1:
-     # number: GPIO14     # 换成你实际接的引脚
-     # mode: INPUT
-   # on_tag:
-      #then:
-        #- logger.log:
-         #   format: "刷到卡号: %s (长度: %d 位)"
-          #  args: [ 'x.c_str()', 'x.length()' ]
-        # 只记录卡号到日志，可选发给 HA
-        # - homeassistant.tag_scanned: !lambda 'return x;'
-        # 或发事件记录
-       # - homeassistant.event:
-           # event: card_scanned
-           #data:
-            # card_id: !lambda 'return x;'
-             # source: "hikvision_reader"    
+# --- 卡号传感器 ---
+text_sensor:
+  - platform: template
+    name: "最后刷卡卡号"
+    id: card_id_display
+    lambda: return id(last_card_id);
+
+wiegand:
+  - id: my_wiegand
+    d0:
+      number: GPIO12     # 接 D0 的引脚
+      mode: INPUT
+    d1:
+      number: GPIO16     # 换成你实际接的引脚
+      mode: INPUT
+    on_tag:
+      then:
+        - logger.log:
+            format: "刷到卡号: %s (长度: %d 位)"
+            args: [ 'x.c_str()', 'x.length()' ]
+        - homeassistant.tag_scanned:
+            tag: !lambda "return x;"
+        - globals.set:
+            id: last_card_id
+            value: !lambda "return x;"
