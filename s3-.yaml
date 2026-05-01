@@ -1,14 +1,21 @@
 esphome:
-  name: s3-
-  friendly_name: s3-串口蓝牙透传
+  name: esp32-serial-bluetooth
+  friendly_name: ESP32串口蓝牙透传
 
 esp32:
-  board: esp32-s3-devkitc-1
+  board: esp32dev
   framework:
     type: esp-idf
+    sdkconfig_options:
+      CONFIG_BT_SPP_ENABLED: y
+
+external_components:
+  - source: ./components
+    components: [uart_spp_bridge]
 
 # Enable logging
 logger:
+  level: INFO
 
 # Enable Home Assistant API
 api:
@@ -29,4 +36,34 @@ wifi:
     password: "hdqUXSAyuLFB"
 
 captive_portal:
-    
+
+# ===== UART 配置 =====
+# UART0 (GPIO1/GPIO3) 被 USB-UART 芯片占用，留给系统日志
+# 以下两组串口使用空闲 GPIO，通过 IO MUX 矩阵灵活分配
+
+uart:
+  # G100 输入串口 — 接收 EMG 数据 (RX←G100 TX)
+  - id: g100_uart
+    rx_pin: GPIO16
+    tx_pin: GPIO17
+    baud_rate: 921600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    rx_buffer_size: 1024
+
+  # 上位机输出串口 — 转发 EMG 数据 (TX→上位机 RX)
+  - id: host_uart
+    tx_pin: GPIO18
+    rx_pin: GPIO19
+    baud_rate: 921600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+
+# ===== UART+SPP 透传桥 =====
+uart_spp_bridge:
+  id: spp_bridge
+  input_uart: g100_uart
+  output_uart: host_uart
+  spp_device_name: "ESP32-EMG-Bridge"

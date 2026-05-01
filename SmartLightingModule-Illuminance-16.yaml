@@ -1,8 +1,7 @@
 esphome:
-  name: s485-lt-me-le-16
+  name: s485-433-le-16
   name_add_mac_suffix: true
-  friendly_name: "智能照明16"
-  #这是带锁的版本，适合公开发布，锁定后功能等同于正式版，锁定机制：编译日期+8天后自动锁定，flash 持久化，解锁方法：编译时定义宏 #define UNLOCK_433_TRIAL
+  friendly_name: "智能照明433遥控16"
   # 这是一个基于 ESP32-C3 的智能照明控制器，支持 16 路继电器控制和环境亮度监测。通过 ttl与主控设备通信，接收控制命令并上报状态，核心逻辑：解析 485 返回的状态包与亮度包，新增环境亮度传感器和光敏触发设置的支持
   on_boot:
     priority: -100  # 在所有组件初始化完成后执行
@@ -143,7 +142,7 @@ esphome:
                 id(photo_low_01), id(photo_low_02), id(photo_low_03), id(photo_low_04),
                 id(photo_low_05), id(photo_low_06), id(photo_low_07), id(photo_low_08),
                 id(photo_low_09), id(photo_low_10), id(photo_low_11), id(photo_low_12),
-                //id(photo_low_13), id(photo_low_14), id(photo_low_15), id(photo_low_16)
+                id(photo_low_13), id(photo_low_14), id(photo_low_15), id(photo_low_16)
               };
               esphome::number::Number *high_num[16] = {  // 16 路上限数值
                 id(photo_high_01), id(photo_high_02), id(photo_high_03), id(photo_high_04),
@@ -180,7 +179,7 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
-    ssid: "S485-LT-ME-16" # AP 模式下的 WiFi 名称
+    ssid: "S485-433-ME-16" # AP 模式下的 WiFi 名称
     password: "12345678" # AP 模式下的 WiFi 密码
   on_connect:
     - output.turn_on: wifi_led_pin  # 连接成功输出高电平
@@ -191,14 +190,6 @@ api:
     #key: "aTXEgWQIHndCXK3/e/IckmFXbf7csBLTlZ7mNJoP87M=" 
 logger:
   level: DEBUG
-time:
-  - platform: sntp
-    id: sys_time
-    timezone: Asia/Shanghai
-    servers:
-      - ntp.aliyun.com
-      - ntp1.aliyun.com
-      - ntp.ntsc.ac.cn
 ota: # 开启 OTA 升级
   - platform: esphome
     password: "12345678" # OTA 密码，建议修改为更安全的密码
@@ -286,12 +277,6 @@ globals:
     type: int
     restore_value: true
     initial_value: '0'
-  # 433 试用期锁：编译日期+8天后自动锁定，flash 持久化
-  - id: trial_expired
-    type: bool
-    restore_value: true
-    initial_value: 'false'
-
 # 核心逻辑：解析 485 返回的状态包与亮度包
   
 
@@ -325,24 +310,83 @@ script:
           int partner = 0;
           if (ch == a && b >= 1 && b <= 16 && a != b) partner = b;
           if (ch == b && a >= 1 && a <= 16 && a != b) partner = a;
+
+          // 先检查配对通道状态，如果正在开启则先将其关闭
+          bool need_wait = false;
           switch (partner) {
-            case 1: id(ch1).turn_off(); break;
-            case 2: id(ch2).turn_off(); break;
-            case 3: id(ch3).turn_off(); break;
-            case 4: id(ch4).turn_off(); break;
-            case 5: id(ch5).turn_off(); break;
-            case 6: id(ch6).turn_off(); break;
-            case 7: id(ch7).turn_off(); break;
-            case 8: id(ch8).turn_off(); break;
-            case 9: id(ch9).turn_off(); break;
-            case 10: id(ch10).turn_off(); break;
-            case 11: id(ch11).turn_off(); break;
-            case 12: id(ch12).turn_off(); break;
-            case 13: id(ch13).turn_off(); break;
-            case 14: id(ch14).turn_off(); break;
-            case 15: id(ch15).turn_off(); break;
-            case 16: id(ch16).turn_off(); break;
+            case 1: if (id(ch1).state) { uint8_t p[]={0xF5,0x52,0x80,0x00,(uint8_t)(0xF5+0x52+0x80)}; id(uart_bus).write_array(p,5); id(ch1).publish_state(false); need_wait=true; } break;
+            case 2: if (id(ch2).state) { uint8_t p[]={0xF5,0x52,0x40,0x00,(uint8_t)(0xF5+0x52+0x40)}; id(uart_bus).write_array(p,5); id(ch2).publish_state(false); need_wait=true; } break;
+            case 3: if (id(ch3).state) { uint8_t p[]={0xF5,0x52,0x20,0x00,(uint8_t)(0xF5+0x52+0x20)}; id(uart_bus).write_array(p,5); id(ch3).publish_state(false); need_wait=true; } break;
+            case 4: if (id(ch4).state) { uint8_t p[]={0xF5,0x52,0x10,0x00,(uint8_t)(0xF5+0x52+0x10)}; id(uart_bus).write_array(p,5); id(ch4).publish_state(false); need_wait=true; } break;
+            case 5: if (id(ch5).state) { uint8_t p[]={0xF5,0x52,0x08,0x00,(uint8_t)(0xF5+0x52+0x08)}; id(uart_bus).write_array(p,5); id(ch5).publish_state(false); need_wait=true; } break;
+            case 6: if (id(ch6).state) { uint8_t p[]={0xF5,0x52,0x04,0x00,(uint8_t)(0xF5+0x52+0x04)}; id(uart_bus).write_array(p,5); id(ch6).publish_state(false); need_wait=true; } break;
+            case 7: if (id(ch7).state) { uint8_t p[]={0xF5,0x52,0x02,0x00,(uint8_t)(0xF5+0x52+0x02)}; id(uart_bus).write_array(p,5); id(ch7).publish_state(false); need_wait=true; } break;
+            case 8: if (id(ch8).state) { uint8_t p[]={0xF5,0x52,0x01,0x00,(uint8_t)(0xF5+0x52+0x01)}; id(uart_bus).write_array(p,5); id(ch8).publish_state(false); need_wait=true; } break;
+            case 9: if (id(ch9).state) { uint8_t p[]={0xF5,0x52,0x00,0x80,(uint8_t)(0xF5+0x52+0x80)}; id(uart_bus).write_array(p,5); id(ch9).publish_state(false); need_wait=true; } break;
+            case 10: if (id(ch10).state) { uint8_t p[]={0xF5,0x52,0x00,0x40,(uint8_t)(0xF5+0x52+0x40)}; id(uart_bus).write_array(p,5); id(ch10).publish_state(false); need_wait=true; } break;
+            case 11: if (id(ch11).state) { uint8_t p[]={0xF5,0x52,0x00,0x20,(uint8_t)(0xF5+0x52+0x20)}; id(uart_bus).write_array(p,5); id(ch11).publish_state(false); need_wait=true; } break;
+            case 12: if (id(ch12).state) { uint8_t p[]={0xF5,0x52,0x00,0x10,(uint8_t)(0xF5+0x52+0x10)}; id(uart_bus).write_array(p,5); id(ch12).publish_state(false); need_wait=true; } break;
+            case 13: if (id(ch13).state) { uint8_t p[]={0xF5,0x52,0x00,0x08,(uint8_t)(0xF5+0x52+0x08)}; id(uart_bus).write_array(p,5); id(ch13).publish_state(false); need_wait=true; } break;
+            case 14: if (id(ch14).state) { uint8_t p[]={0xF5,0x52,0x00,0x04,(uint8_t)(0xF5+0x52+0x04)}; id(uart_bus).write_array(p,5); id(ch14).publish_state(false); need_wait=true; } break;
+            case 15: if (id(ch15).state) { uint8_t p[]={0xF5,0x52,0x00,0x02,(uint8_t)(0xF5+0x52+0x02)}; id(uart_bus).write_array(p,5); id(ch15).publish_state(false); need_wait=true; } break;
+            case 16: if (id(ch16).state) { uint8_t p[]={0xF5,0x52,0x00,0x01,(uint8_t)(0xF5+0x52+0x01)}; id(uart_bus).write_array(p,5); id(ch16).publish_state(false); need_wait=true; } break;
           }
+          if (need_wait) delay(1000);
+
+          // 再开启当前通道
+          uint8_t payload[] = {0xF5, (uint8_t)cmd, (uint8_t)data0, (uint8_t)data1, (uint8_t)(0xF5 + cmd + data0 + data1)};
+          id(uart_bus).write_array(payload, 5);
+      - delay: 100ms
+
+  - id: interlocked_turn_off
+    mode: queued
+    max_runs: 32
+    parameters:
+      cmd: int
+      data0: int
+      data1: int
+    then:
+      - lambda: |-
+          // 根据 data0/data1 反推通道号
+          int ch = 0;
+          if (data0 & 0x80) ch = 1; else if (data0 & 0x40) ch = 2;
+          else if (data0 & 0x20) ch = 3; else if (data0 & 0x10) ch = 4;
+          else if (data0 & 0x08) ch = 5; else if (data0 & 0x04) ch = 6;
+          else if (data0 & 0x02) ch = 7; else if (data0 & 0x01) ch = 8;
+          else if (data1 & 0x80) ch = 9; else if (data1 & 0x40) ch = 10;
+          else if (data1 & 0x20) ch = 11; else if (data1 & 0x10) ch = 12;
+          else if (data1 & 0x08) ch = 13; else if (data1 & 0x04) ch = 14;
+          else if (data1 & 0x02) ch = 15; else if (data1 & 0x01) ch = 16;
+
+          int a = id(interlock_a);
+          int b = id(interlock_b);
+          int partner = 0;
+          if (ch == a && b >= 1 && b <= 16 && a != b) partner = b;
+          if (ch == b && a >= 1 && a <= 16 && a != b) partner = a;
+
+          // 先检查配对通道状态，如果正在关闭则先将其开启
+          bool need_wait = false;
+          switch (partner) {
+            case 1: if (!id(ch1).state) { uint8_t p[]={0xF5,0x51,0x80,0x00,(uint8_t)(0xF5+0x51+0x80)}; id(uart_bus).write_array(p,5); id(ch1).publish_state(true); need_wait=true; } break;
+            case 2: if (!id(ch2).state) { uint8_t p[]={0xF5,0x51,0x40,0x00,(uint8_t)(0xF5+0x51+0x40)}; id(uart_bus).write_array(p,5); id(ch2).publish_state(true); need_wait=true; } break;
+            case 3: if (!id(ch3).state) { uint8_t p[]={0xF5,0x51,0x20,0x00,(uint8_t)(0xF5+0x51+0x20)}; id(uart_bus).write_array(p,5); id(ch3).publish_state(true); need_wait=true; } break;
+            case 4: if (!id(ch4).state) { uint8_t p[]={0xF5,0x51,0x10,0x00,(uint8_t)(0xF5+0x51+0x10)}; id(uart_bus).write_array(p,5); id(ch4).publish_state(true); need_wait=true; } break;
+            case 5: if (!id(ch5).state) { uint8_t p[]={0xF5,0x51,0x08,0x00,(uint8_t)(0xF5+0x51+0x08)}; id(uart_bus).write_array(p,5); id(ch5).publish_state(true); need_wait=true; } break;
+            case 6: if (!id(ch6).state) { uint8_t p[]={0xF5,0x51,0x04,0x00,(uint8_t)(0xF5+0x51+0x04)}; id(uart_bus).write_array(p,5); id(ch6).publish_state(true); need_wait=true; } break;
+            case 7: if (!id(ch7).state) { uint8_t p[]={0xF5,0x51,0x02,0x00,(uint8_t)(0xF5+0x51+0x02)}; id(uart_bus).write_array(p,5); id(ch7).publish_state(true); need_wait=true; } break;
+            case 8: if (!id(ch8).state) { uint8_t p[]={0xF5,0x51,0x01,0x00,(uint8_t)(0xF5+0x51+0x01)}; id(uart_bus).write_array(p,5); id(ch8).publish_state(true); need_wait=true; } break;
+            case 9: if (!id(ch9).state) { uint8_t p[]={0xF5,0x51,0x00,0x80,(uint8_t)(0xF5+0x51+0x80)}; id(uart_bus).write_array(p,5); id(ch9).publish_state(true); need_wait=true; } break;
+            case 10: if (!id(ch10).state) { uint8_t p[]={0xF5,0x51,0x00,0x40,(uint8_t)(0xF5+0x51+0x40)}; id(uart_bus).write_array(p,5); id(ch10).publish_state(true); need_wait=true; } break;
+            case 11: if (!id(ch11).state) { uint8_t p[]={0xF5,0x51,0x00,0x20,(uint8_t)(0xF5+0x51+0x20)}; id(uart_bus).write_array(p,5); id(ch11).publish_state(true); need_wait=true; } break;
+            case 12: if (!id(ch12).state) { uint8_t p[]={0xF5,0x51,0x00,0x10,(uint8_t)(0xF5+0x51+0x10)}; id(uart_bus).write_array(p,5); id(ch12).publish_state(true); need_wait=true; } break;
+            case 13: if (!id(ch13).state) { uint8_t p[]={0xF5,0x51,0x00,0x08,(uint8_t)(0xF5+0x51+0x08)}; id(uart_bus).write_array(p,5); id(ch13).publish_state(true); need_wait=true; } break;
+            case 14: if (!id(ch14).state) { uint8_t p[]={0xF5,0x51,0x00,0x04,(uint8_t)(0xF5+0x51+0x04)}; id(uart_bus).write_array(p,5); id(ch14).publish_state(true); need_wait=true; } break;
+            case 15: if (!id(ch15).state) { uint8_t p[]={0xF5,0x51,0x00,0x02,(uint8_t)(0xF5+0x51+0x02)}; id(uart_bus).write_array(p,5); id(ch15).publish_state(true); need_wait=true; } break;
+            case 16: if (!id(ch16).state) { uint8_t p[]={0xF5,0x51,0x00,0x01,(uint8_t)(0xF5+0x51+0x01)}; id(uart_bus).write_array(p,5); id(ch16).publish_state(true); need_wait=true; } break;
+          }
+          if (need_wait) delay(1000);
+
+          // 再关闭当前通道
           uint8_t payload[] = {0xF5, (uint8_t)cmd, (uint8_t)data0, (uint8_t)data1, (uint8_t)(0xF5 + cmd + data0 + data1)};
           id(uart_bus).write_array(payload, 5);
       - delay: 100ms
@@ -416,50 +460,6 @@ interval:
             id(hold_long_done) = false;
           }
 
-  - id: trial_check_timer
-    interval: 5min
-    then:
-      - lambda: |-
-          // === 433 试用期检查（编译日期 + 8天） ===
-          if (id(trial_expired)) return;
-
-          // 解析 __DATE__ (格式: "Apr 27 2026")
-          const char* ds = __DATE__;
-          int c_day = atoi(ds + 4);
-          int c_year = atoi(ds + 7);
-          int c_mon;
-          switch (ds[0]) {
-            case 'J': c_mon = (ds[1] == 'a') ? 1 : ((ds[2] == 'n') ? 6 : 7); break;
-            case 'F': c_mon = 2; break;
-            case 'M': c_mon = (ds[2] == 'r') ? 3 : 5; break;
-            case 'A': c_mon = (ds[1] == 'p') ? 4 : 8; break;
-            case 'S': c_mon = 9; break;
-            case 'O': c_mon = 10; break;
-            case 'N': c_mon = 11; break;
-            case 'D': c_mon = 12; break;
-            default: c_mon = 1; break;
-          }
-
-          // 截止日期 = 编译日期 + 8天
-          int dpm[] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
-          int dd = c_day + 8, dm = c_mon, dy = c_year;
-          while (dd > dpm[dm]) {
-            dd -= dpm[dm];
-            if (++dm > 12) { dm = 1; dy++; }
-          }
-
-          // 对比 NTP 时间
-          auto now = id(sys_time).now();
-          if (now.is_valid()) {
-            bool expired = false;
-            if (now.year > dy) expired = true;
-            else if (now.year == dy && now.month > dm) expired = true;
-            else if (now.year == dy && now.month == dm && now.day_of_month > dd) expired = true;
-            if (expired) {
-              id(trial_expired) = true;
-              ESP_LOGW("RF_433", "=== 8天试用期已过，433遥控功能已锁定。请联系卖家获取解锁版本 ===");
-            }
-          }
 
 # 新增：传感器与二元传感器 (报警/联动信号)
 binary_sensor:
@@ -486,6 +486,16 @@ binary_sensor:
           - ON for at least 5s
         then:
           - button.press: wifi_factory_reset_btn
+  - platform: gpio
+    name: "配对按钮GPIO5"
+    id: gpio5_pair_btn
+    pin:
+      number: GPIO5
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    entity_category: "config"
 
 sensor:
   - platform: template
@@ -1168,8 +1178,6 @@ remote_receiver:
   on_rc_switch:
     then:
       - lambda: |-
-          // === 试用期拦截 ===
-          if (id(trial_expired)) return;
           uint32_t code = x.code;
           // 拆分24位编码：高16位为遥控器唯一ID，低8位为按键功能码
           uint32_t remote_id = (code >> 8) & 0xFFFF;
@@ -1235,6 +1243,12 @@ remote_receiver:
           // [配对] 4键长按3秒 = 对码（有空余槽位即可）
           // ==============================
           if (btn_code == 0xCC) {
+            bool ok4 = (id(paired_remote_id_1) == remote_id || id(paired_remote_id_2) == remote_id ||
+                        id(paired_remote_id_3) == remote_id || id(paired_remote_id_4) == remote_id);
+            if (!ok4 && !id(gpio5_pair_btn).state && !id(pairing_enable_sw).state) {
+              ESP_LOGW("RF_433", "未授权遥控器4键已拦截。打开软件对码开关或按住GPIO5再长按4键3秒配对");
+              return;
+            }
             if (id(hold_key_code) != 0xCC) {
               id(hold_key_start) = now;
               id(hold_key_code) = 0xCC;
@@ -1275,7 +1289,7 @@ remote_receiver:
                             id(paired_remote_id_3) != 0 || id(paired_remote_id_4) != 0);
             bool ok = (id(paired_remote_id_1) == remote_id || id(paired_remote_id_2) == remote_id ||
                        id(paired_remote_id_3) == remote_id || id(paired_remote_id_4) == remote_id);
-            if (has_any && !ok) {
+            if (!ok) {
               ESP_LOGW("RF_433", "收到未授权的遥控器指令，已拦截！遥控器ID: %04X", remote_id);
               return;
             }
@@ -1339,112 +1353,112 @@ switch:
     optimistic: true  # 启动时乐观地认为它是关闭的，直到收到状态包更新为止
     restore_mode: DISABLED # 上电不恢复状态，避免状态不一致导致误操作
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x80, data1: 0x00, ch: 1 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x80, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x80, data1: 0x00 } }
   - platform: template
     name: "灯光-02"
     id: ch2
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x40, data1: 0x00, ch: 2 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x40, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x40, data1: 0x00 } }
   - platform: template
     name: "灯光-03"
     id: ch3
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x20, data1: 0x00, ch: 3 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x20, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x20, data1: 0x00 } }
   - platform: template
     name: "灯光-04"
     id: ch4
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x10, data1: 0x00, ch: 4 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x10, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x10, data1: 0x00 } }
   - platform: template
     name: "灯光-05"
     id: ch5
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x08, data1: 0x00, ch: 5 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x08, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x08, data1: 0x00 } }
   - platform: template
     name: "灯光-06"
     id: ch6
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x04, data1: 0x00, ch: 6 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x04, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x04, data1: 0x00 } }
   - platform: template
     name: "灯光-07"
     id: ch7
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x02, data1: 0x00, ch: 7 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x02, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x02, data1: 0x00 } }
   - platform: template
     name: "灯光-08"
     id: ch8
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x01, data1: 0x00, ch: 8 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x01, data1: 0x00 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x01, data1: 0x00 } }
   - platform: template
     name: "灯光-09"
     id: ch9
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x80, ch: 9 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x80 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x80 } }
   - platform: template
     name: "灯光-10"
     id: ch10
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x40, ch: 10 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x40 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x40 } }
   - platform: template
     name: "灯光-11"
     id: ch11
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x20, ch: 11 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x20 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x20 } }
   - platform: template
     name: "灯光-12"
     id: ch12
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x10, ch: 12 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x10 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x10 } }
   - platform: template
     name: "灯光-13"
     id: ch13
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x08, ch: 13 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x08 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x08 } }
   - platform: template
     name: "灯光-14"
     id: ch14
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x04, ch: 14 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x04 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x04 } }
   - platform: template
     name: "灯光-15"
     id: ch15
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x02, ch: 15 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x02 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x02 } }
   - platform: template
     name: "灯光-16"
     id: ch16
     optimistic: true
     restore_mode: DISABLED
     turn_on_action:  { script.execute: { id: interlocked_turn_on, cmd: 0x51, data0: 0x00, data1: 0x01, ch: 16 } }
-    turn_off_action: { script.execute: { id: send_cmd, cmd: 0x52, data0: 0x00, data1: 0x01 } }
+    turn_off_action: { script.execute: { id: interlocked_turn_off, cmd: 0x52, data0: 0x00, data1: 0x01 } }
   - platform: template
     name: "55.自动更新亮度"
     id: auto_brightness_sw
@@ -1452,6 +1466,13 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON  # 断电记忆，默认开启
     icon: "mdi:brightness-auto"
+  - platform: template
+    name: "67.软件对码开关"
+    id: pairing_enable_sw
+    entity_category: "config"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:lock-open-variant"
   # 光敏：每路启用开关
   - platform: template
     name: "3.光敏-01-启用"
