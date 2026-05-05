@@ -1330,9 +1330,9 @@ remote_receiver:
    - rc_switch         
   # rc_switch 默认能捕获市面绝大多数 24 位 EV1527 模块码
   # 滤波器设置，容差可根据实际效果调整
-  tolerance: 50%            # 接收信号的时间容差
-  filter: 200us             # 过滤掉短于250微秒的脉冲（噪声）
-  idle: 2ms                 # 判断一帧数据结束的空闲时间
+  tolerance: 25%            # 接收信号的时间容差（收紧，减少噪声误判）
+  filter: 400us             # 过滤掉短于400微秒的脉冲（噪声）
+  idle: 4ms                 # 判断一帧数据结束的空闲时间
 
   on_rc_switch:
     then:
@@ -1444,6 +1444,10 @@ remote_receiver:
           // [安全] 验证遥控器权限（检查所有4个槽位）
           // ==============================
           {
+            if (remote_id == 0) {
+              ESP_LOGW("RF_433", "收到无效遥控器指令（ID=0噪声），已拦截！");
+              return;
+            }
             bool has_any = (id(paired_remote_id_1) != 0 || id(paired_remote_id_2) != 0 ||
                             id(paired_remote_id_3) != 0 || id(paired_remote_id_4) != 0);
             bool ok = (id(paired_remote_id_1) == remote_id || id(paired_remote_id_2) == remote_id ||
