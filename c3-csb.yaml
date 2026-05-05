@@ -1,0 +1,32 @@
+esphome:
+  name: c3-csb
+  friendly_name: c3-CSB
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "vPddP5mnt/qCVkeO0G110I0KXWuJ77HdKhwnd+o3K8U="
+
+ota:
+  - platform: esphome
+    password: "72c21b99e188b2587a0da1d006297c42"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "C3-Csb Fallback Hotspot"
+    password: "A5arDGr8N331"
+
+captive_portal:
+    

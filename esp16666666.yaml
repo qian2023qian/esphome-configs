@@ -1,0 +1,301 @@
+esphome:
+  name: esp32-garden-master
+  friendly_name: Esp32_Garden_Master
+  on_boot:
+    - priority: 900
+      then:
+        - lambda: |-
+            digitalWrite(5, HIGH);
+            digitalWrite(12, LOW);
+            digitalWrite(13, LOW);
+            digitalWrite(14, LOW);
+            pinMode(5, OUTPUT);
+            pinMode(12, OUTPUT);
+            pinMode(13, OUTPUT);
+            pinMode(14, OUTPUT);
+        - script.execute: update_relays
+        - output.turn_on: relay_oe
+    - priority: -100
+      then:
+        - delay: 3s
+        - script.execute: update_relays
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: "4uDWNYrX8De9+MpJ2y9Dr8/N/98TrHF1quhBVbFwj30="
+
+ota:
+  - platform: esphome
+    password: "dd93af6b63f7cace819e8b1660730faa"
+
+wifi:
+  ssid: "Mr.Liu"
+  password: "ly652812"
+  manual_ip:
+    static_ip: 10.10.10.121
+    gateway: 10.10.10.3
+    subnet: 255.255.255.0
+  ap:
+    ssid: "Relay备用"
+    password: "12345678"
+
+captive_portal:
+
+web_server:
+  version: 2
+  port: 80
+
+output:
+  - platform: gpio
+    pin: 5
+    id: relay_oe
+    inverted: true
+
+script:
+  - id: update_relays
+    mode: restart
+    then:
+      - lambda: |-
+          digitalWrite(5, HIGH);
+
+          uint16_t data = 0;
+          if (id(r1).state)  data |= (1 << 0);
+          if (id(r2).state)  data |= (1 << 1);
+          if (id(r3).state)  data |= (1 << 2);
+          if (id(r4).state)  data |= (1 << 3);
+          if (id(r5).state)  data |= (1 << 4);
+          if (id(r6).state)  data |= (1 << 5);
+          if (id(r7).state)  data |= (1 << 6);
+          if (id(r8).state)  data |= (1 << 7);
+          if (id(r9).state)  data |= (1 << 8);
+          if (id(r10).state) data |= (1 << 9);
+          if (id(r11).state) data |= (1 << 10);
+          if (id(r12).state) data |= (1 << 11);
+          if (id(r13).state) data |= (1 << 12);
+          if (id(r14).state) data |= (1 << 13);
+          if (id(r15).state) data |= (1 << 14);
+          if (id(r16).state) data |= (1 << 15);
+
+          for (uint8_t i = 0; i < 16; i++) {
+            digitalWrite(13, LOW);
+            if (data & 0x8000)
+              digitalWrite(14, HIGH);
+            else
+              digitalWrite(14, LOW);
+            data <<= 1;
+            digitalWrite(13, HIGH);
+          }
+          digitalWrite(12, LOW);
+          digitalWrite(12, HIGH);
+          digitalWrite(5, LOW);
+
+switch:
+  - platform: template
+    id: r1
+    name: "01 围栏灯"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r2
+    name: "02 围栏炫彩灯"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r3
+    name: "03 大门柱子灯"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r4
+    name: "04 花池灯带"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r5
+    name: "05 溪流池灯"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r6
+    name: "06 平台灯带"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r7
+    name: "07 入户门灯带"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r8
+    name: "08 门牌灯"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r9
+    name: "09 灭蚊灯"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r10
+    name: "10 备用开关"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r11
+    name: "11 小盆阀门"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r12
+    name: "12 番茄阀门"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r13
+    name: "13 西种植箱阀门"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r14
+    name: "14 黄瓜阀门"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r15
+    name: "15 喷药阀门"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+    turn_off_action:
+      - script.execute: update_relays
+
+  - platform: template
+    id: r16
+    name: "16 24V主隔膜泵"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - script.execute: update_relays
+      - delay: 30min
+      - switch.turn_off: r16
+    turn_off_action:
+      - script.execute: update_relays
+
+button:
+  - platform: template
+    name: "🏠 全开 A"
+    on_press:
+      - switch.turn_on: r1
+      - switch.turn_on: r2
+      - switch.turn_on: r3
+      - switch.turn_on: r4
+      - switch.turn_on: r5
+      - switch.turn_on: r6
+      - switch.turn_on: r7
+      - switch.turn_on: r8
+      - switch.turn_on: r9
+      - switch.turn_on: r10
+      - switch.turn_on: r11
+      - switch.turn_on: r12
+      - switch.turn_on: r13
+      - switch.turn_on: r14
+      - switch.turn_on: r15
+      - switch.turn_on: r16
+
+  - platform: template
+    name: "🌙 全关 B"
+    on_press:
+      - switch.turn_off: r1
+      - switch.turn_off: r2
+      - switch.turn_off: r3
+      - switch.turn_off: r4
+      - switch.turn_off: r5
+      - switch.turn_off: r6
+      - switch.turn_off: r7
+      - switch.turn_off: r8
+      - switch.turn_off: r9
+      - switch.turn_off: r10
+      - switch.turn_off: r11
+      - switch.turn_off: r12
+      - switch.turn_off: r13
+      - switch.turn_off: r14
+      - switch.turn_off: r15
+      - switch.turn_off: r16

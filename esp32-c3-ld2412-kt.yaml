@@ -29,7 +29,8 @@ wifi:
   ap:
     ssid: "Esp32-C3-Ld2410C-2"
     password: "fjqGyFZTeZN8"
-
+web_server:
+  port: 80
 captive_portal:
 
 # UART串口配置 - 用于LD2412毫米波雷达通信
